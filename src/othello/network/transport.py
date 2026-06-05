@@ -39,8 +39,11 @@ class SocketTransport:
             logger.warning("socket close済みのため送信しません: message={}", message)
             return
 
+        encoded_message: bytes = encode_message(message)
+        logger.info("送信JSON: {}", _decode_bytes_for_log(encoded_message))
+
         try:
-            self.sock.sendall(encode_message(message))
+            self.sock.sendall(encoded_message)
         except OSError:
             logger.exception("メッセージ送信に失敗しました: message={}", message)
             self.close()
@@ -66,6 +69,8 @@ class SocketTransport:
                 logger.info("socket切断を検出しました。")
                 self.close()
                 return None
+
+            logger.info("受信JSON: {}", _decode_bytes_for_log(data))
 
             try:
                 message: OthelloMessage = decode_message(data)
@@ -100,3 +105,15 @@ class SocketTransport:
             logger.exception("socket close中にエラーが発生しました。")
 
         logger.info("socket closeを完了しました。")
+
+
+def _decode_bytes_for_log(data: bytes) -> str:
+    """ログ出力用にbytesをUTF-8文字列へ変換します。
+
+    Args:
+        data: ログ出力対象のbytes。
+
+    Returns:
+        UTF-8として復元した文字列。復元できないバイトは置換文字にします。
+    """
+    return data.decode("utf-8", errors="replace")
