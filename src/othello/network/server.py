@@ -1,8 +1,8 @@
 """PDF仕様に基づくオセロTCPサーバを定義します。"""
 
-from queue import Queue
 import socket
 import threading
+from queue import Queue
 
 from loguru import logger
 
@@ -67,7 +67,10 @@ class OthelloTcpServer:
             None.
         """
         if self._transport is None:
-            logger.warning("クライアント未接続のため送信できません: message={}", message)
+            logger.warning(
+                "クライアント未接続のため送信できません: message={}",
+                message,
+            )
             return
 
         self._transport.send_message(message)

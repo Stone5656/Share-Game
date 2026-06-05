@@ -1,6 +1,6 @@
 """オセロの盤面状態を管理します。"""
 
-from typing import Iterator
+from collections.abc import Iterator
 
 from loguru import logger
 
@@ -32,10 +32,7 @@ class Board:
         Returns:
             すべてのマスがCell.EMPTYで埋められた二次元リスト。
         """
-        return [
-            [Cell.EMPTY for _ in range(BOARD_SIZE)]
-            for _ in range(BOARD_SIZE)
-        ]
+        return [[Cell.EMPTY for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 
     def _setup_initial_position(self) -> None:
         """オセロの初期配置として中央4マスに石を配置します。

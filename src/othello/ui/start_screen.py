@@ -1,7 +1,7 @@
 """開始画面の描画とボタン選択処理を定義します。"""
 
-from loguru import logger
 import pygame
+from loguru import logger
 
 from src.othello.config import AppState, NetworkConfig
 from src.othello.constants import (
@@ -24,8 +24,9 @@ class StartScreen:
         """
         self.network_config: NetworkConfig = network_config
         self.title_font: pygame.font.Font = pygame.font.Font(None, 72)
-        self.button_font: pygame.font.Font = pygame.font.Font(None, 36)
+        self.button_font: pygame.font.Font = pygame.font.Font(None, 32)
         self.status_font: pygame.font.Font = pygame.font.Font(None, 28)
+        self.section_font: pygame.font.Font = pygame.font.Font(None, 34)
         self.buttons: dict[AppState, Button] = self._create_buttons()
 
     def handle_event(self, event: pygame.event.Event) -> AppState | None:
@@ -61,6 +62,7 @@ class StartScreen:
         surface.fill(BOARD_COLOR)
         self._draw_title(surface)
         self._draw_network_config(surface)
+        self._draw_cpu_section_title(surface)
 
         for button in self.buttons.values():
             button.draw(surface, self.button_font)
@@ -72,9 +74,9 @@ class StartScreen:
             AppStateごとのButton辞書。
         """
         button_width: int = 340
-        button_height: int = 64
-        start_y: int = 220
-        gap: int = 28
+        button_height: int = 48
+        start_y: int = 190
+        gap: int = 16
         x: int = (SCREEN_WIDTH - button_width) // 2
 
         return {
@@ -99,6 +101,24 @@ class StartScreen:
                     button_height,
                 ),
                 label="Client / Black",
+            ),
+            AppState.SERVER_CPU_GAME: Button(
+                rect=pygame.Rect(
+                    x,
+                    start_y + (button_height + gap) * 4,
+                    button_width,
+                    button_height,
+                ),
+                label="Server CPU / White",
+            ),
+            AppState.CLIENT_CPU_GAME: Button(
+                rect=pygame.Rect(
+                    x,
+                    start_y + (button_height + gap) * 5,
+                    button_width,
+                    button_height,
+                ),
+                label="Client CPU / Black",
             ),
         }
 
@@ -137,5 +157,24 @@ class StartScreen:
         )
         text_rect: pygame.Rect = text_surface.get_rect(
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 5 + 58)
+        )
+        surface.blit(text_surface, text_rect)
+
+    def _draw_cpu_section_title(self, surface: pygame.Surface) -> None:
+        """Remote CPU vs CPUの見出しを描画します。
+
+        Args:
+            surface: 描画先Surface。
+
+        Returns:
+            None.
+        """
+        text_surface: pygame.Surface = self.section_font.render(
+            "Remote CPU vs CPU",
+            True,
+            RESULT_TEXT_COLOR,
+        )
+        text_rect: pygame.Rect = text_surface.get_rect(
+            center=(SCREEN_WIDTH // 2, 190 + (48 + 16) * 3 + 24)
         )
         surface.blit(text_surface, text_rect)

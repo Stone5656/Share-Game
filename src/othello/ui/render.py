@@ -1,31 +1,28 @@
 """pygameによるオセロ盤面の描画処理を定義します。"""
 
 import pygame
+from loguru import logger
 
 from src.othello.constants import (
     BLACK_STONE_COLOR,
     BOARD_COLOR,
     BOARD_SIZE,
-    ColorRGB,
     GRID_COLOR,
     GRID_LINE_WIDTH,
     LEGAL_MOVE_MARKER_COLOR,
     LEGAL_MOVE_MARKER_RADIUS,
     LEGAL_MOVE_MARKER_WIDTH,
-    RESULT_BACKGROUND_ALPHA,
-    RESULT_BACKGROUND_COLOR,
-    RESULT_FONT_SIZE,
-    RESULT_TEXT_COLOR,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SQUARE_SIZE,
     STONE_MARGIN,
     WHITE_STONE_COLOR,
+    ColorRGB,
 )
 from src.othello.core.board import Board
 from src.othello.core.game_enums import Cell
 from src.othello.core.game_types import BoardPosition
-from loguru import logger
+from src.othello.ui.text_renderer import ResultTextRenderer
 
 
 class BoardRenderer:
@@ -42,10 +39,7 @@ class BoardRenderer:
             surface: 描画先となるpygameのSurface。
         """
         self.surface: pygame.Surface = surface
-        self.result_font: pygame.font.Font = pygame.font.Font(
-            None,
-            RESULT_FONT_SIZE,
-        )
+        self.result_text_renderer: ResultTextRenderer = ResultTextRenderer()
 
         logger.debug("BoardRendererを初期化しました。")
 
@@ -69,7 +63,7 @@ class BoardRenderer:
         self._draw_grid()
         self._draw_stones(board)
         self._draw_legal_moves(legal_move_positions)
-        self._draw_result_text(result_text)
+        self.result_text_renderer.draw(self.surface, result_text)
 
     def _draw_grid(self) -> None:
         """縦線と横線を描画して8x8のグリッドを作成します。
@@ -186,35 +180,6 @@ class BoardRenderer:
             LEGAL_MOVE_MARKER_RADIUS,
             width=LEGAL_MOVE_MARKER_WIDTH,
         )
-
-    def _draw_result_text(self, result_text: str | None) -> None:
-        """ゲーム結果テキストを中央に描画します。
-
-        Args:
-            result_text: 描画するゲーム結果文字列。
-
-        Returns:
-            None.
-        """
-        if result_text is None:
-            return
-
-        overlay: pygame.Surface = pygame.Surface(
-            (SCREEN_WIDTH, SCREEN_HEIGHT),
-            pygame.SRCALPHA,
-        )
-        overlay.fill((*RESULT_BACKGROUND_COLOR, RESULT_BACKGROUND_ALPHA))
-        self.surface.blit(overlay, (0, 0))
-
-        text_surface: pygame.Surface = self.result_font.render(
-            result_text,
-            True,
-            RESULT_TEXT_COLOR,
-        )
-        text_rect: pygame.Rect = text_surface.get_rect(
-            center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-        )
-        self.surface.blit(text_surface, text_rect)
 
     def _get_stone_color(self, cell: Cell) -> ColorRGB:
         """Cell値を描画用のRGB色に変換します。

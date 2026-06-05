@@ -11,6 +11,8 @@ class AppState(Enum):
     LOCAL_GAME = auto()
     SERVER_GAME = auto()
     CLIENT_GAME = auto()
+    SERVER_CPU_GAME = auto()
+    CLIENT_CPU_GAME = auto()
 
 
 @dataclass(frozen=True)

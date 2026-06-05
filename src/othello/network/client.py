@@ -1,8 +1,8 @@
 """PDF仕様に基づくオセロTCPクライアントを定義します。"""
 
-from queue import Queue
 import socket
 import threading
+from queue import Queue
 
 from loguru import logger
 

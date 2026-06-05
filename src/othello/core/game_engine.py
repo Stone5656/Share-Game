@@ -6,8 +6,12 @@ from loguru import logger
 
 from src.othello.core.board import Board
 from src.othello.core.game_enums import Cell, GameStatus
+from src.othello.core.game_result import create_result_text, determine_winner
 from src.othello.core.game_types import BoardPosition, LegalMove
+from src.othello.core.move_applier import flip_stones, place_stone
+from src.othello.core.player_color import get_opponent
 from src.othello.core.rules import LegalMoveScanner
+from src.othello.core.stone_counter import count_stones
 
 
 @dataclass
@@ -68,8 +72,8 @@ class GameEngine:
             logger.warning("非合法手のため着手できません: position={}", position)
             return False
 
-        self._place_stone(legal_move)
-        self._flip_stones(legal_move)
+        place_stone(self.board, legal_move, self.current_player)
+        flip_stones(self.board, legal_move, self.current_player)
         self._advance_turn_after_move()
 
         return True
@@ -104,7 +108,7 @@ class GameEngine:
             return False
 
         logger.info("パスを適用しました: player={}", player.name)
-        self.current_player = self._get_opponent(self.current_player)
+        self.current_player = get_opponent(self.current_player)
         self.legal_moves = self.find_legal_moves()
 
         if self.legal_moves:
@@ -133,45 +137,6 @@ class GameEngine:
 
         return None
 
-    def _place_stone(self, legal_move: LegalMove) -> None:
-        """合法手の位置に現在の手番プレイヤーの石を置きます。
-
-        Args:
-            legal_move: 適用する合法手。
-
-        Returns:
-            None.
-        """
-        self.board.set_cell(
-            legal_move.position.row,
-            legal_move.position.col,
-            self.current_player,
-        )
-
-        logger.info(
-            "石を配置しました: player={}, position={}",
-            self.current_player.name,
-            legal_move.position,
-        )
-
-    def _flip_stones(self, legal_move: LegalMove) -> None:
-        """合法手に含まれる反転対象の石を裏返します。
-
-        Args:
-            legal_move: 適用する合法手。
-
-        Returns:
-            None.
-        """
-        for position in legal_move.flippable_positions:
-            self.board.set_cell(position.row, position.col, self.current_player)
-
-        logger.info(
-            "石を反転しました: player={}, flip_count={}",
-            self.current_player.name,
-            len(legal_move.flippable_positions),
-        )
-
     def _advance_turn_after_move(self) -> None:
         """次の手番へ進めます。
 
@@ -181,7 +146,7 @@ class GameEngine:
         Returns:
             None.
         """
-        self.current_player = self._get_opponent(self.current_player)
+        self.current_player = get_opponent(self.current_player)
         self.legal_moves = self.find_legal_moves()
 
         if self.legal_moves:
@@ -222,9 +187,11 @@ class GameEngine:
             None.
         """
         self.status = GameStatus.GAME_OVER
-        self._determine_winner()
+        self.black_count, self.white_count = count_stones(self.board)
+        self.winner = determine_winner(self.black_count, self.white_count)
         logger.info(
-            "両者とも合法手がないためゲーム終了です: black_count={}, white_count={}, result={}",
+            "両者とも合法手がないためゲーム終了です: "
+            "black_count={}, white_count={}, result={}",
             self.black_count,
             self.white_count,
             self.get_result_text(),
@@ -237,7 +204,7 @@ class GameEngine:
             相手プレイヤーに合法手があればTrue。
         """
         original_player: Cell = self.current_player
-        self.current_player = self._get_opponent(self.current_player)
+        self.current_player = get_opponent(self.current_player)
         opponent_legal_moves: tuple[LegalMove, ...] = self.find_legal_moves()
         self.current_player = original_player
         self.legal_moves = self.find_legal_moves()
@@ -250,72 +217,4 @@ class GameEngine:
         Returns:
             ゲーム終了時は結果文字列。ゲーム中はNone。
         """
-        if self.status is not GameStatus.GAME_OVER:
-            return None
-
-        if self.winner is Cell.BLACK:
-            return "Black Win"
-
-        if self.winner is Cell.WHITE:
-            return "White Win"
-
-        return "Draw"
-
-    def _determine_winner(self) -> None:
-        """盤面の石数から勝者を判定します。
-
-        Returns:
-            None.
-        """
-        self.black_count, self.white_count = self._count_stones()
-
-        if self.black_count > self.white_count:
-            self.winner = Cell.BLACK
-            return
-
-        if self.white_count > self.black_count:
-            self.winner = Cell.WHITE
-            return
-
-        self.winner = None
-
-    def _count_stones(self) -> tuple[int, int]:
-        """盤面上の黒石と白石の数を返します。
-
-        Returns:
-            黒石数と白石数のタプル。
-        """
-        black_count: int = 0
-        white_count: int = 0
-
-        for _position, cell in self.board.iter_cells():
-            if cell is Cell.BLACK:
-                black_count += 1
-                continue
-
-            if cell is Cell.WHITE:
-                white_count += 1
-
-        return black_count, white_count
-
-    def _get_opponent(self, current_player: Cell) -> Cell:
-        """現在の手番プレイヤーに対する相手の石色を返します。
-
-        Args:
-            current_player: 現在の手番プレイヤー。
-
-        Returns:
-            相手プレイヤーのCell値。
-
-        Raises:
-            ValueError: Cell.EMPTYが渡された場合。
-        """
-        match current_player:
-            case Cell.BLACK:
-                return Cell.WHITE
-
-            case Cell.WHITE:
-                return Cell.BLACK
-
-            case Cell.EMPTY:
-                raise ValueError("Cell.EMPTYはプレイヤーとして扱えません。")
+        return create_result_text(self.status, self.winner)

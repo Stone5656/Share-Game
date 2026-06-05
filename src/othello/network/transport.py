@@ -1,6 +1,7 @@
 """socketを使ったOthelloMessage送受信処理を定義します。"""
 
 import socket
+from contextlib import suppress
 from typing import Final
 
 from loguru import logger
@@ -94,10 +95,8 @@ class SocketTransport:
 
         self._closed = True
 
-        try:
+        with suppress(OSError):
             self.sock.shutdown(socket.SHUT_RDWR)
-        except OSError:
-            pass
 
         try:
             self.sock.close()

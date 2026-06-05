@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass, field
 
-from loguru import logger
 import pygame
+from loguru import logger
 
 from src.othello.constants import BOARD_SIZE, SQUARE_SIZE
 from src.othello.core.game_enums import Cell, PlayerKind

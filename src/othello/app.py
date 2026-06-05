@@ -2,8 +2,8 @@
 
 from typing import Protocol
 
-from loguru import logger
 import pygame
+from loguru import logger
 
 from src.othello.config import AppState, NetworkConfig
 from src.othello.constants import (
@@ -180,6 +180,22 @@ class OthelloApp:
             case AppState.CLIENT_GAME:
                 logger.info("Client選択")
                 self.current_mode = ClientMode(self.screen, self.network_config)
+
+            case AppState.SERVER_CPU_GAME:
+                logger.info("Server CPU選択")
+                self.current_mode = ServerMode(
+                    self.screen,
+                    self.network_config,
+                    use_cpu=True,
+                )
+
+            case AppState.CLIENT_CPU_GAME:
+                logger.info("Client CPU選択")
+                self.current_mode = ClientMode(
+                    self.screen,
+                    self.network_config,
+                    use_cpu=True,
+                )
 
             case AppState.START_SCREEN:
                 logger.info("開始画面へ戻ります。")

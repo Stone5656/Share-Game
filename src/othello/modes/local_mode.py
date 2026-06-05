@@ -1,7 +1,7 @@
 """ローカル人間同士の対戦モードを定義します。"""
 
-from loguru import logger
 import pygame
+from loguru import logger
 
 from src.othello.core.board import Board
 from src.othello.core.game_engine import GameEngine

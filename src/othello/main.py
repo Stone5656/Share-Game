@@ -8,6 +8,7 @@ from src.othello.app import OthelloApp
 from src.othello.config import NetworkConfig
 from src.othello.constants import DEFAULT_HOST, DEFAULT_PORT
 from src.othello.logger import setup_logger
+from src.othello.network.ip_validation import validate_ip_address
 
 
 def main() -> None:
@@ -44,6 +45,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--host",
+        type=_parse_host,
         default=DEFAULT_HOST,
         help=(
             "TCP通信に使うIPアドレスを指定します。"
@@ -58,6 +60,24 @@ def _parse_args() -> argparse.Namespace:
     )
 
     return parser.parse_args()
+
+
+def _parse_host(value: str) -> str:
+    """IPアドレス文字列を検証します。
+
+    Args:
+        value: コマンドライン引数で指定されたIPアドレス。
+
+    Returns:
+        検証済みのIPアドレス。
+
+    Raises:
+        argparse.ArgumentTypeError: IPアドレスが不正な場合。
+    """
+    try:
+        return validate_ip_address(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def _parse_port(value: str) -> int:
