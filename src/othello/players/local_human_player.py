@@ -69,11 +69,8 @@ class LocalHumanPlayer:
         if self._clicked_position is None:
             return None
 
-        selected_position: BoardPosition | None = self._clicked_position
+        selected_position: BoardPosition = self._clicked_position
         self._clicked_position = None
-
-        if selected_position is None:
-            return None
 
         if not self._is_legal_position(selected_position, context.legal_moves):
             logger.debug(

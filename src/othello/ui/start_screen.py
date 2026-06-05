@@ -3,7 +3,7 @@
 from loguru import logger
 import pygame
 
-from src.othello.config import AppState
+from src.othello.config import AppState, NetworkConfig
 from src.othello.constants import (
     BOARD_COLOR,
     RESULT_TEXT_COLOR,
@@ -16,10 +16,16 @@ from src.othello.ui.button import Button
 class StartScreen:
     """Local / Server / Client を選択する開始画面です。"""
 
-    def __init__(self) -> None:
-        """開始画面を初期化します。"""
+    def __init__(self, network_config: NetworkConfig) -> None:
+        """開始画面を初期化します。
+
+        Args:
+            network_config: TCP通信設定。
+        """
+        self.network_config: NetworkConfig = network_config
         self.title_font: pygame.font.Font = pygame.font.Font(None, 72)
         self.button_font: pygame.font.Font = pygame.font.Font(None, 36)
+        self.status_font: pygame.font.Font = pygame.font.Font(None, 28)
         self.buttons: dict[AppState, Button] = self._create_buttons()
 
     def handle_event(self, event: pygame.event.Event) -> AppState | None:
@@ -54,6 +60,7 @@ class StartScreen:
         """
         surface.fill(BOARD_COLOR)
         self._draw_title(surface)
+        self._draw_network_config(surface)
 
         for button in self.buttons.values():
             button.draw(surface, self.button_font)
@@ -113,3 +120,22 @@ class StartScreen:
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 5)
         )
         surface.blit(title_surface, title_rect)
+
+    def _draw_network_config(self, surface: pygame.Surface) -> None:
+        """現在のTCP通信設定を描画します。
+
+        Args:
+            surface: 描画先Surface。
+
+        Returns:
+            None.
+        """
+        text_surface: pygame.Surface = self.status_font.render(
+            f"Network: {self.network_config.host}:{self.network_config.port}",
+            True,
+            RESULT_TEXT_COLOR,
+        )
+        text_rect: pygame.Rect = text_surface.get_rect(
+            center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 5 + 58)
+        )
+        surface.blit(text_surface, text_rect)

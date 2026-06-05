@@ -3,9 +3,13 @@
 from dataclasses import dataclass
 from enum import Enum
 import json
-from typing import Any
+from collections.abc import Mapping
+from typing import TypeAlias, cast
 
 from src.othello.core.game_types import BoardPosition
+
+JsonValue: TypeAlias = str | int | None
+JsonObject: TypeAlias = Mapping[str, object]
 
 
 class OthelloCommand(Enum):
@@ -30,6 +34,33 @@ class OthelloMessage:
     command: OthelloCommand
     col: int | None = None
     row: int | None = None
+
+
+@dataclass(frozen=True)
+class OthelloPayload:
+    """PDF仕様のJSON辞書形状を表す内部payloadです。
+
+    Attributes:
+        command: JSON上の通信コマンド文字列。
+        col: 石を置いた列。不要または未指定の場合はNone。
+        row: 石を置いた行。不要または未指定の場合はNone。
+    """
+
+    command: str
+    col: int | None = None
+    row: int | None = None
+
+    def to_mapping(self) -> Mapping[str, JsonValue]:
+        """JSON変換用のMappingへ変換します。
+
+        Returns:
+            PDF仕様に基づくJSON用Mapping。
+        """
+        return {
+            "command": self.command,
+            "col": self.col,
+            "row": self.row,
+        }
 
 
 def create_start_message() -> OthelloMessage:
@@ -84,12 +115,12 @@ def encode_message(message: OthelloMessage) -> bytes:
     Returns:
         UTF-8でエンコードされたJSON bytes。
     """
-    payload: dict[str, str | int | None] = {
-        "command": message.command.value,
-        "col": message.col,
-        "row": message.row,
-    }
-    return json.dumps(payload).encode("utf-8")
+    payload: OthelloPayload = OthelloPayload(
+        command=message.command.value,
+        col=message.col,
+        row=message.row,
+    )
+    return json.dumps(payload.to_mapping()).encode("utf-8")
 
 
 def decode_message(data: bytes) -> OthelloMessage:
@@ -104,14 +135,11 @@ def decode_message(data: bytes) -> OthelloMessage:
     Raises:
         ValueError: メッセージ形式が不正な場合。
     """
-    try:
-        payload: dict[str, Any] = json.loads(data.decode("utf-8"))
-        command: OthelloCommand = OthelloCommand(payload["command"])
-    except (json.JSONDecodeError, KeyError, UnicodeDecodeError, ValueError) as exc:
-        raise ValueError("メッセージ形式が不正です。") from exc
+    payload: OthelloPayload = _decode_payload(data)
+    command: OthelloCommand = _decode_command(payload.command)
 
-    col: int | None = _to_optional_int(payload.get("col"))
-    row: int | None = _to_optional_int(payload.get("row"))
+    col: int | None = payload.col
+    row: int | None = payload.row
 
     if command is OthelloCommand.HIT and (col is None or row is None):
         raise ValueError("HITメッセージにはcolとrowが必要です。")
@@ -119,16 +147,112 @@ def decode_message(data: bytes) -> OthelloMessage:
     return OthelloMessage(command=command, col=col, row=row)
 
 
-def _to_optional_int(value: Any) -> int | None:
-    """任意の値をintまたはNoneへ変換します。
+def _decode_payload(data: bytes) -> OthelloPayload:
+    """JSON bytesをOthelloPayloadへ変換します。
 
     Args:
-        value: 変換対象の値。
+        data: 受信したJSON bytes。
+
+    Returns:
+        OthelloPayload。
+
+    Raises:
+        ValueError: JSONまたはpayload形式が不正な場合。
+    """
+    json_object: JsonObject = _load_json_object(data)
+    return OthelloPayload(
+        command=_read_required_str(json_object, "command"),
+        col=_read_optional_int(json_object, "col"),
+        row=_read_optional_int(json_object, "row"),
+    )
+
+
+def _decode_command(command_value: str) -> OthelloCommand:
+    """文字列から通信コマンドを復元します。
+
+    Args:
+        command_value: 通信コマンド文字列。
+
+    Returns:
+        通信コマンド。
+
+    Raises:
+        ValueError: commandが不正な場合。
+    """
+    try:
+        return OthelloCommand(command_value)
+    except ValueError as exc:
+        raise ValueError("未対応のcommandです。") from exc
+
+
+def _load_json_object(data: bytes) -> JsonObject:
+    """JSON bytesを型検証済みのMappingへ変換します。
+
+    Args:
+        data: 受信したJSON bytes。
+
+    Returns:
+        文字列キーを持つJSONオブジェクト。
+
+    Raises:
+        ValueError: JSONまたはオブジェクト形式が不正な場合。
+    """
+    try:
+        loaded: object = json.loads(data.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ValueError("メッセージ形式が不正です。") from exc
+
+    if not isinstance(loaded, Mapping):
+        raise ValueError("メッセージpayloadはMappingである必要があります。")
+
+    raw_mapping: Mapping[object, object] = cast(Mapping[object, object], loaded)
+
+    if not all(isinstance(key, str) for key in raw_mapping.keys()):
+        raise ValueError("メッセージpayloadのキーは文字列である必要があります。")
+
+    return cast(JsonObject, raw_mapping)
+
+
+def _read_required_str(json_object: JsonObject, key: str) -> str:
+    """JSONオブジェクトから必須文字列値を読み取ります。
+
+    Args:
+        json_object: 読み取り対象のJSONオブジェクト。
+        key: 読み取るキー。
+
+    Returns:
+        文字列値。
+
+    Raises:
+        ValueError: 値が文字列でない場合。
+    """
+    value: object | None = json_object.get(key)
+
+    if not isinstance(value, str):
+        raise ValueError(f"{key}は文字列である必要があります。")
+
+    return value
+
+
+def _read_optional_int(json_object: JsonObject, key: str) -> int | None:
+    """JSONオブジェクトから任意の整数値を読み取ります。
+
+    Args:
+        json_object: 読み取り対象のJSONオブジェクト。
+        key: 読み取るキー。
 
     Returns:
         int値またはNone。
+
+    Raises:
+        ValueError: 値が整数またはNoneでない場合。
     """
+    value: object | None = json_object.get(key)
+
     if value is None:
         return None
 
-    return int(value)
+    if type(value) is int:
+        return value
+
+    raise ValueError(f"{key}は整数またはNoneである必要があります。")

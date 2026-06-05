@@ -24,8 +24,18 @@ class OthelloTcpClient:
         self.incoming_queue: Queue[OthelloMessage] = Queue()
         self._transport: SocketTransport | None = None
         self._closed: bool = False
+        self._connected: bool = False
         self._connect_thread: threading.Thread | None = None
         self._recv_thread: threading.Thread | None = None
+
+    @property
+    def is_connected(self) -> bool:
+        """サーバとのTCP接続が確立済みかを返します。
+
+        Returns:
+            接続済みであればTrue。
+        """
+        return self._connected and not self._closed
 
     def start(self) -> None:
         """サーバへの接続処理を別スレッドで開始します。
@@ -69,6 +79,7 @@ class OthelloTcpClient:
             None.
         """
         self._closed = True
+        self._connected = False
 
         if self._transport is not None:
             self._transport.close()
@@ -104,6 +115,7 @@ class OthelloTcpClient:
             self.config.port,
         )
         self._transport = SocketTransport(sock)
+        self._connected = True
         self._recv_thread = threading.Thread(
             target=self._recv_messages_forever,
             daemon=True,
@@ -129,4 +141,5 @@ class OthelloTcpClient:
             self.incoming_queue.put(message)
             logger.info("{}受信: message={}", message.command.value, message)
 
+        self._connected = False
         logger.info("クライアント受信スレッドを終了しました。")

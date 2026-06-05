@@ -15,11 +15,11 @@ class PlayerController(Protocol):
     """
 
     @property
-    def color(self) -> Cell:
+    def color(self) -> Cell | None:
         """担当する石色を返します。"""
 
     @property
-    def kind(self) -> PlayerKind:
+    def kind(self) -> PlayerKind | None:
         """プレイヤー種別を返します。"""
 
     def handle_event(self, event: pygame.event.Event) -> None:

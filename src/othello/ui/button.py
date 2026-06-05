@@ -7,7 +7,6 @@ import pygame
 from src.othello.constants import (
     BLACK_STONE_COLOR,
     GRID_COLOR,
-    RESULT_TEXT_COLOR,
     WHITE_STONE_COLOR,
 )
 

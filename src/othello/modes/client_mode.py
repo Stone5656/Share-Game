@@ -62,11 +62,7 @@ class ClientMode:
             return
 
         if not self._can_local_player_act():
-            logger.info(
-                "手番ではないクリック: local_color={}, current_player={}",
-                self.local_player.color.name,
-                self.engine.current_player.name,
-            )
+            self._log_input_block_reason()
             return
 
         self.local_player.handle_event(event)
@@ -79,7 +75,7 @@ class ClientMode:
         """
         self._process_network_messages()
 
-        if self.engine.status is GameStatus.GAME_OVER or not self.game_ready:
+        if self.engine.status is GameStatus.GAME_OVER or not self._is_network_ready():
             return
 
         if self.engine.current_player is not self.local_player.color:
@@ -143,7 +139,7 @@ class ClientMode:
 
                 case OthelloCommand.HIT:
                     logger.info("HIT受信: message={}", message)
-                    if not self.game_ready:
+                    if not self._is_network_ready():
                         logger.warning("ゲーム準備前のHITを破棄しました: message={}", message)
                         continue
 
@@ -151,7 +147,7 @@ class ClientMode:
 
                 case OthelloCommand.PASS:
                     logger.info("PASS受信: message={}", message)
-                    if not self.game_ready:
+                    if not self._is_network_ready():
                         logger.warning("ゲーム準備前のPASSを破棄しました: message={}", message)
                         continue
 
@@ -233,11 +229,54 @@ class ClientMode:
             入力可能であればTrue。
         """
         return (
-            self.game_ready
+            self._is_network_ready()
             and self.engine.status is not GameStatus.GAME_OVER
             and self.engine.current_player is self.local_player.color
             and bool(self.engine.legal_moves)
         )
+
+    def _is_network_ready(self) -> bool:
+        """対局入力を始められる通信状態かを返します。
+
+        OK受信済みを優先しますが、別実装のサーバがOKを返さない場合でも、
+        TCP接続が確立済みであればClient / Blackの初手を許可します。
+
+        Returns:
+            対局入力を始められる通信状態であればTrue。
+        """
+        return self.game_ready or self.client.is_connected
+
+    def _log_input_block_reason(self) -> None:
+        """ローカルクリックが拒否された理由をログ出力します。
+
+        Returns:
+            None.
+        """
+        if not self._is_network_ready():
+            logger.info(
+                "通信準備前のクリックを無視しました: connected={}, ok_received={}",
+                self.client.is_connected,
+                self.game_ready,
+            )
+            return
+
+        if self.engine.status is GameStatus.GAME_OVER:
+            logger.info("ゲーム終了後のクリックを無視しました。")
+            return
+
+        if self.engine.current_player is not self.local_player.color:
+            logger.info(
+                "手番ではないクリック: local_color={}, current_player={}",
+                self.local_player.color.name,
+                self.engine.current_player.name,
+            )
+            return
+
+        if not self.engine.legal_moves:
+            logger.info(
+                "合法手がないためクリックを無視しました: local_color={}",
+                self.local_player.color.name,
+            )
 
     def _get_legal_move_positions(self) -> tuple[BoardPosition, ...]:
         """描画用の合法手位置一覧を返します。

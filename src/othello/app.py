@@ -7,8 +7,6 @@ import pygame
 
 from src.othello.config import AppState, NetworkConfig
 from src.othello.constants import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
     FPS,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -58,8 +56,12 @@ class GameMode(Protocol):
 class OthelloApp:
     """pygameの初期化、開始画面、モード委譲、終了処理を管理します。"""
 
-    def __init__(self) -> None:
-        """pygame、ウィンドウ、開始画面を初期化します。"""
+    def __init__(self, network_config: NetworkConfig) -> None:
+        """pygame、ウィンドウ、開始画面を初期化します。
+
+        Args:
+            network_config: TCP通信設定。
+        """
         pygame.init()
 
         self.screen: pygame.Surface = pygame.display.set_mode(
@@ -68,15 +70,17 @@ class OthelloApp:
         self.clock: pygame.time.Clock = pygame.time.Clock()
         self.running: bool = True
         self.app_state: AppState = AppState.START_SCREEN
-        self.start_screen: StartScreen = StartScreen()
+        self.network_config: NetworkConfig = network_config
+        self.start_screen: StartScreen = StartScreen(self.network_config)
         self.current_mode: GameMode | None = None
-        self.network_config: NetworkConfig = NetworkConfig(
-            host=DEFAULT_HOST,
-            port=DEFAULT_PORT,
-        )
 
         pygame.display.set_caption(WINDOW_TITLE)
         logger.info("開始画面表示")
+        logger.info(
+            "TCP通信設定を適用しました: host={}, port={}",
+            self.network_config.host,
+            self.network_config.port,
+        )
         logger.info(
             "OthelloAppを初期化しました: screen={}x{}, fps={}",
             SCREEN_WIDTH,
