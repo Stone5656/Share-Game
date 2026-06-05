@@ -1,51 +1,82 @@
-"""pygameアプリケーションの初期化、イベント処理、メインループを定義します。"""
+"""pygameアプリケーションの初期化、イベント委譲、メインループを定義します。"""
+
+from typing import Protocol
 
 from loguru import logger
 import pygame
 
-from src.othello.board import Board
-from src.othello.constants import FPS, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE
-from src.othello.game_engine import GameEngine
-from src.othello.game_enums import Cell, GameStatus
-from src.othello.game_types import PlayerAction, PlayerContext
-from src.othello.player_controller import PlayerController
-from src.othello.players import LocalHumanPlayer
-from src.othello.render import BoardRenderer
-from src.othello.rules import LegalMoveScanner
+from src.othello.config import AppState, NetworkConfig
+from src.othello.constants import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    FPS,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    WINDOW_TITLE,
+)
+from src.othello.modes.client_mode import ClientMode
+from src.othello.modes.local_mode import LocalMode
+from src.othello.modes.server_mode import ServerMode
+from src.othello.ui.start_screen import StartScreen
+
+
+class GameMode(Protocol):
+    """OthelloAppが委譲するゲームモードの共通インターフェースです。"""
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        """pygameイベントを処理します。
+
+        Args:
+            event: pygameイベント。
+
+        Returns:
+            None.
+        """
+
+    def update(self) -> None:
+        """モードの状態を更新します。
+
+        Returns:
+            None.
+        """
+
+    def draw(self) -> None:
+        """モードの画面を描画します。
+
+        Returns:
+            None.
+        """
+
+    def close(self) -> None:
+        """モードを終了します。
+
+        Returns:
+            None.
+        """
 
 
 class OthelloApp:
-    """pygameの初期化、イベント処理、メインループを管理します。"""
+    """pygameの初期化、開始画面、モード委譲、終了処理を管理します。"""
 
     def __init__(self) -> None:
-        """pygame、ウィンドウ、盤面、描画クラスを初期化します。"""
+        """pygame、ウィンドウ、開始画面を初期化します。"""
         pygame.init()
 
         self.screen: pygame.Surface = pygame.display.set_mode(
             (SCREEN_WIDTH, SCREEN_HEIGHT)
         )
         self.clock: pygame.time.Clock = pygame.time.Clock()
-        self.board: Board = Board()
-        self.engine: GameEngine = GameEngine(
-            board=self.board,
-            current_player=Cell.BLACK,
-            legal_move_scanner=LegalMoveScanner(),
-        )
-        self.renderer: BoardRenderer = BoardRenderer(self.screen)
-        self.players: dict[Cell, PlayerController] = {
-            Cell.BLACK: LocalHumanPlayer(Cell.BLACK),
-            Cell.WHITE: LocalHumanPlayer(Cell.WHITE),
-        }
         self.running: bool = True
+        self.app_state: AppState = AppState.START_SCREEN
+        self.start_screen: StartScreen = StartScreen()
+        self.current_mode: GameMode | None = None
+        self.network_config: NetworkConfig = NetworkConfig(
+            host=DEFAULT_HOST,
+            port=DEFAULT_PORT,
+        )
 
         pygame.display.set_caption(WINDOW_TITLE)
-
-        logger.info(
-            "初期手番を設定しました: current_player={}, legal_move_count={}",
-            self.engine.current_player.name,
-            len(self.engine.legal_moves),
-        )
-
+        logger.info("開始画面表示")
         logger.info(
             "OthelloAppを初期化しました: screen={}x{}, fps={}",
             SCREEN_WIDTH,
@@ -70,7 +101,7 @@ class OthelloApp:
         self._shutdown()
 
     def _handle_events(self) -> None:
-        """pygameのイベントキューからイベントを取り出して処理します。
+        """pygameイベントを取得して現在状態へ委譲します。
 
         Returns:
             None.
@@ -79,80 +110,87 @@ class OthelloApp:
             self._handle_event(event)
 
     def _handle_event(self, event: pygame.event.Event) -> None:
-        """pygameイベントを種類ごとに振り分けます。
-
-        今後、キーボード入力、マウス入力、独自イベントなどが増える想定のため、
-        ifではなくmatchを使用しています。
+        """pygameイベントを処理します。
 
         Args:
-            event: pygameのイベントオブジェクト。
+            event: pygameイベント。
 
         Returns:
             None.
         """
-        match event.type:
-            case pygame.QUIT:
-                logger.info("終了イベントを受け取りました。")
-                self.running = False
+        if event.type == pygame.QUIT:
+            logger.info("終了イベントを受け取りました。")
+            self.running = False
+            return
 
-            case pygame.KEYDOWN | pygame.MOUSEBUTTONDOWN:
-                current_player: PlayerController = self._get_current_player()
-                current_player.handle_event(event)
+        if self.app_state is AppState.START_SCREEN:
+            selected_state: AppState | None = self.start_screen.handle_event(event)
 
-            case _:
-                # 現段階では、ウィンドウ移動やマウス移動などの細かいイベントは無視します。
-                # これらをDEBUG出力するとログ量が多くなりすぎるため、必要になるまで記録しません。
-                pass
+            if selected_state is not None:
+                self._start_selected_mode(selected_state)
+            return
+
+        if self.current_mode is not None:
+            self.current_mode.handle_event(event)
 
     def _update(self) -> None:
-        """現在手番のPlayerから行動を受け取り、ゲーム状態へ反映します。
+        """現在のモード状態を更新します。
 
         Returns:
             None.
         """
-        if self.engine.status is GameStatus.GAME_OVER:
-            return
-
-        current_player: PlayerController = self._get_current_player()
-
-        context: PlayerContext = PlayerContext(
-            current_player=self.engine.current_player,
-            legal_moves=self.engine.legal_moves,
-        )
-
-        action: PlayerAction | None = current_player.select_action(context)
-
-        if action is None:
-            return
-
-        self.engine.apply_move(action.position)
-
-    def _get_current_player(self) -> PlayerController:
-        """現在手番に対応するPlayerControllerを返します。
-
-        Returns:
-            現在手番のPlayerController。
-        """
-        return self.players[self.engine.current_player]
+        if self.current_mode is not None:
+            self.current_mode.update()
 
     def _draw(self) -> None:
-        """現在のフレームを描画します。
+        """現在の画面を描画します。
 
         Returns:
             None.
         """
-        self.renderer.draw(
-            self.board,
-            self.engine.legal_moves,
-            self.engine.get_result_text(),
-        )
+        if self.app_state is AppState.START_SCREEN:
+            self.start_screen.draw(self.screen)
+        elif self.current_mode is not None:
+            self.current_mode.draw()
+
         pygame.display.flip()
 
-    def _shutdown(self) -> None:
-        """pygameを終了し、終了ログを出力します。
+    def _start_selected_mode(self, selected_state: AppState) -> None:
+        """開始画面で選択されたモードを開始します。
+
+        Args:
+            selected_state: 開始するアプリケーション状態。
 
         Returns:
             None.
         """
+        match selected_state:
+            case AppState.LOCAL_GAME:
+                logger.info("Local選択")
+                self.current_mode = LocalMode(self.screen)
+
+            case AppState.SERVER_GAME:
+                logger.info("Server選択")
+                self.current_mode = ServerMode(self.screen, self.network_config)
+
+            case AppState.CLIENT_GAME:
+                logger.info("Client選択")
+                self.current_mode = ClientMode(self.screen, self.network_config)
+
+            case AppState.START_SCREEN:
+                logger.info("開始画面へ戻ります。")
+                self.current_mode = None
+
+        self.app_state = selected_state
+
+    def _shutdown(self) -> None:
+        """現在モードとpygameを終了し、終了ログを出力します。
+
+        Returns:
+            None.
+        """
+        if self.current_mode is not None:
+            self.current_mode.close()
+
         pygame.quit()
-        logger.info("アプリケーションを終了しました。")
+        logger.info("アプリ終了")

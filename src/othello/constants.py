@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import Final
 
-from src.othello.game_enums import Cell
-from src.othello.game_types import BoardPosition, Direction
+from src.othello.core.game_enums import Cell
+from src.othello.core.game_types import BoardPosition, Direction
 
 ColorRGB = tuple[int, int, int]
 
@@ -15,6 +15,11 @@ SCREEN_WIDTH: Final[int] = BOARD_SIZE * SQUARE_SIZE
 SCREEN_HEIGHT: Final[int] = BOARD_SIZE * SQUARE_SIZE
 
 FPS: Final[int] = 60
+
+DEFAULT_HOST: Final[str] = "127.0.0.1"
+DEFAULT_PORT: Final[int] = 5555
+SERVER_COLOR: Final[Cell] = Cell.WHITE
+CLIENT_COLOR: Final[Cell] = Cell.BLACK
 
 BOARD_COLOR: Final[ColorRGB] = (34, 139, 34)
 GRID_COLOR: Final[ColorRGB] = (0, 0, 0)
