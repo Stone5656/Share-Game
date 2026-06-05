@@ -2,7 +2,6 @@
 
 import pygame
 
-from src.othello.board import Board
 from src.othello.constants import (
     BLACK_STONE_COLOR,
     BOARD_COLOR,
@@ -23,8 +22,9 @@ from src.othello.constants import (
     STONE_MARGIN,
     WHITE_STONE_COLOR,
 )
-from src.othello.game_enums import Cell
-from src.othello.game_types import BoardPosition, LegalMove
+from src.othello.core.board import Board
+from src.othello.core.game_enums import Cell
+from src.othello.core.game_types import BoardPosition
 from loguru import logger
 
 
@@ -52,14 +52,14 @@ class BoardRenderer:
     def draw(
         self,
         board: Board,
-        legal_moves: tuple[LegalMove, ...],
+        legal_move_positions: tuple[BoardPosition, ...],
         result_text: str | None,
     ) -> None:
         """盤面、石、合法手マーカー、結果テキストを描画します。
 
         Args:
             board: 描画対象の盤面状態。
-            legal_moves: 描画対象の合法手一覧。
+            legal_move_positions: 描画対象の合法手位置一覧。
             result_text: ゲーム結果の表示文字列。
 
         Returns:
@@ -68,7 +68,7 @@ class BoardRenderer:
         self.surface.fill(BOARD_COLOR)
         self._draw_grid()
         self._draw_stones(board)
-        self._draw_legal_moves(legal_moves)
+        self._draw_legal_moves(legal_move_positions)
         self._draw_result_text(result_text)
 
     def _draw_grid(self) -> None:
@@ -153,17 +153,20 @@ class BoardRenderer:
             radius,
         )
 
-    def _draw_legal_moves(self, legal_moves: tuple[LegalMove, ...]) -> None:
+    def _draw_legal_moves(
+        self,
+        legal_move_positions: tuple[BoardPosition, ...],
+    ) -> None:
         """合法手の位置にマーカーを描画します。
 
         Args:
-            legal_moves: 描画対象の合法手一覧。
+            legal_move_positions: 描画対象の合法手位置一覧。
 
         Returns:
             None.
         """
-        for legal_move in legal_moves:
-            self._draw_legal_move_marker(legal_move.position)
+        for position in legal_move_positions:
+            self._draw_legal_move_marker(position)
 
     def _draw_legal_move_marker(self, position: BoardPosition) -> None:
         """指定された位置に合法手マーカーを描画します。
