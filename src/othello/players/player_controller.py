@@ -4,8 +4,8 @@ from typing import Protocol
 
 import pygame
 
-from src.othello.game_enums import Cell, PlayerKind
-from src.othello.game_types import PlayerAction, PlayerContext
+from src.othello.core.game_enums import Cell, PlayerKind
+from src.othello.core.game_types import PlayerAction, PlayerContext
 
 
 class PlayerController(Protocol):

@@ -1,4 +1,4 @@
-"""プレイヤー操作主体の実装を定義します。"""
+"""ローカル人間プレイヤーの入力処理を定義します。"""
 
 from dataclasses import dataclass, field
 
@@ -6,8 +6,8 @@ from loguru import logger
 import pygame
 
 from src.othello.constants import BOARD_SIZE, SQUARE_SIZE
-from src.othello.game_enums import Cell, PlayerKind
-from src.othello.game_types import (
+from src.othello.core.game_enums import Cell, PlayerKind
+from src.othello.core.game_types import (
     BoardPosition,
     LegalMove,
     PlayerAction,
