@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from src.othello.game_enums import Cell
+from src.othello.core.game_enums import Cell
 
 
 @dataclass(frozen=True)
@@ -49,10 +49,12 @@ class PlayerAction:
     """プレイヤーが選択した行動を表します。
 
     Attributes:
-        position: 石を置く位置。
+        position: 石を置く位置。パスの場合はNone。
+        is_pass: パス行動であればTrue。
     """
 
-    position: BoardPosition
+    position: BoardPosition | None = None
+    is_pass: bool = False
 
 
 @dataclass(frozen=True)

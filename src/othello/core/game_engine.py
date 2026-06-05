@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 
 from loguru import logger
 
-from src.othello.board import Board
-from src.othello.game_enums import Cell, GameStatus
-from src.othello.game_types import BoardPosition, LegalMove
-from src.othello.rules import LegalMoveScanner
+from src.othello.core.board import Board
+from src.othello.core.game_enums import Cell, GameStatus
+from src.othello.core.game_types import BoardPosition, LegalMove
+from src.othello.core.rules import LegalMoveScanner
 
 
 @dataclass
@@ -30,7 +30,7 @@ class GameEngine:
     def __post_init__(self) -> None:
         """初期化後のゲーム状態を設定します。"""
         self.legal_moves = self.find_legal_moves()
-        self._pass_or_finish_if_needed()
+        self._finish_if_both_players_have_no_moves()
 
         logger.info(
             "ゲームエンジンを初期化しました: current_player={}, legal_move_count={}",
@@ -70,8 +70,52 @@ class GameEngine:
 
         self._place_stone(legal_move)
         self._flip_stones(legal_move)
-        self._advance_turn()
+        self._advance_turn_after_move()
 
+        return True
+
+    def apply_pass(self, player: Cell) -> bool:
+        """指定プレイヤーのパスを適用します。
+
+        Args:
+            player: パスするプレイヤー。
+
+        Returns:
+            パスが適用できた場合はTrue。
+        """
+        if self.status is GameStatus.GAME_OVER:
+            logger.warning("ゲーム終了後のパスは無視します: player={}", player.name)
+            return False
+
+        if player is not self.current_player:
+            logger.warning(
+                "現在手番ではないためパスできません: player={}, current_player={}",
+                player.name,
+                self.current_player.name,
+            )
+            return False
+
+        if self.legal_moves:
+            logger.warning(
+                "合法手があるためパスできません: player={}, legal_move_count={}",
+                player.name,
+                len(self.legal_moves),
+            )
+            return False
+
+        logger.info("パスを適用しました: player={}", player.name)
+        self.current_player = self._get_opponent(self.current_player)
+        self.legal_moves = self.find_legal_moves()
+
+        if self.legal_moves:
+            logger.info(
+                "パス後の手番を設定しました: current_player={}, legal_move_count={}",
+                self.current_player.name,
+                len(self.legal_moves),
+            )
+            return True
+
+        self._finish_game()
         return True
 
     def _find_matching_legal_move(self, position: BoardPosition) -> LegalMove | None:
@@ -128,10 +172,10 @@ class GameEngine:
             len(legal_move.flippable_positions),
         )
 
-    def _advance_turn(self) -> None:
+    def _advance_turn_after_move(self) -> None:
         """次の手番へ進めます。
 
-        次のプレイヤーに合法手がなければパスします。
+        次のプレイヤーに合法手がなければ、明示PASSを待てる状態にします。
         両者とも合法手がなければゲーム終了にします。
 
         Returns:
@@ -148,10 +192,17 @@ class GameEngine:
             )
             return
 
-        self._pass_or_finish_if_needed()
+        if self._opponent_has_legal_moves():
+            logger.info(
+                "合法手がないためパス待ちです: current_player={}",
+                self.current_player.name,
+            )
+            return
 
-    def _pass_or_finish_if_needed(self) -> None:
-        """合法手がない場合にパスまたはゲーム終了を処理します。
+        self._finish_game()
+
+    def _finish_if_both_players_have_no_moves(self) -> None:
+        """両者とも合法手がない場合にゲーム終了へ進めます。
 
         Returns:
             None.
@@ -159,19 +210,17 @@ class GameEngine:
         if self.legal_moves:
             return
 
-        logger.info("合法手がないためパスします: player={}", self.current_player.name)
-
-        self.current_player = self._get_opponent(self.current_player)
-        self.legal_moves = self.find_legal_moves()
-
-        if self.legal_moves:
-            logger.info(
-                "パス後の手番を設定しました: current_player={}, legal_move_count={}",
-                self.current_player.name,
-                len(self.legal_moves),
-            )
+        if self._opponent_has_legal_moves():
             return
 
+        self._finish_game()
+
+    def _finish_game(self) -> None:
+        """ゲーム終了状態へ進め、勝者を決定します。
+
+        Returns:
+            None.
+        """
         self.status = GameStatus.GAME_OVER
         self._determine_winner()
         logger.info(
@@ -180,6 +229,20 @@ class GameEngine:
             self.white_count,
             self.get_result_text(),
         )
+
+    def _opponent_has_legal_moves(self) -> bool:
+        """相手プレイヤーに合法手があるかを返します。
+
+        Returns:
+            相手プレイヤーに合法手があればTrue。
+        """
+        original_player: Cell = self.current_player
+        self.current_player = self._get_opponent(self.current_player)
+        opponent_legal_moves: tuple[LegalMove, ...] = self.find_legal_moves()
+        self.current_player = original_player
+        self.legal_moves = self.find_legal_moves()
+
+        return bool(opponent_legal_moves)
 
     def get_result_text(self) -> str | None:
         """ゲーム結果の表示文字列を返します。

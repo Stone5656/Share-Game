@@ -4,9 +4,9 @@ from typing import Iterator
 
 from loguru import logger
 
-from src.othello.game_types import BoardPosition
 from src.othello.constants import BOARD_SIZE, INITIAL_STONES
-from src.othello.game_enums import Cell
+from src.othello.core.game_enums import Cell
+from src.othello.core.game_types import BoardPosition
 
 
 class Board:
@@ -75,6 +75,19 @@ class Board:
             None.
         """
         self.cells[row][col] = cell
+
+    def set_all_cells(self, cells: tuple[tuple[Cell, ...], ...]) -> None:
+        """盤面全体を指定されたCell配列で上書きします。
+
+        Args:
+            cells: 新しい盤面状態。
+
+        Returns:
+            None.
+        """
+        for row_index, row in enumerate(cells):
+            for col_index, cell in enumerate(row):
+                self.set_cell(row_index, col_index, cell)
 
     def iter_cells(self) -> Iterator[tuple[BoardPosition, Cell]]:
         """盤面上のすべてのマスを位置情報付きで反復します。

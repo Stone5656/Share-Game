@@ -2,10 +2,10 @@
 
 from loguru import logger
 
-from src.othello.board import Board
 from src.othello.constants import BOARD_SIZE, DIRECTIONS
-from src.othello.game_enums import Cell
-from src.othello.game_types import BoardPosition, Direction, LegalMove
+from src.othello.core.board import Board
+from src.othello.core.game_enums import Cell
+from src.othello.core.game_types import BoardPosition, Direction, LegalMove
 
 
 class LegalMoveScanner:
