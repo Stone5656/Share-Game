@@ -1,6 +1,7 @@
 """強化学習の設定値を定義します。"""
 
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -26,3 +27,24 @@ DEFAULT_TRAINING_CONFIG = TrainingConfig(
     epsilon=0.1,
     weight_file_path="data/othello_rl_weights.json",
 )
+
+
+@dataclass(frozen=True)
+class TabularTrainingConfig:
+    """盤面記憶型CPUの学習設定を表します。
+
+    Attributes:
+        games: 自己対戦の回数。
+        learning_rate: 学習率。
+        gamma: 割引率。
+        epsilon: 探索率。
+        state_values_path: 状態価値JSONの保存先。
+        save_every: 何局ごとに保存するか。
+    """
+
+    games: int = 100
+    learning_rate: float = 0.1
+    gamma: float = 0.95
+    epsilon: float = 0.1
+    state_values_path: Path = Path("data/othello_state_values.json")
+    save_every: int = 1
