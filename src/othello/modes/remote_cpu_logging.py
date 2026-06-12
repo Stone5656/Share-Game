@@ -2,7 +2,9 @@
 
 from loguru import logger
 
+from src.othello.core.game_result import GameResult
 from src.othello.core.game_types import BoardPosition
+from src.othello.players.cpu.strategy_lifecycle import notify_game_finished
 from src.othello.players.cpu_player import CpuPlayer
 from src.othello.players.player_controller import PlayerController
 
@@ -64,3 +66,34 @@ def get_cpu_strategy_name(local_player: PlayerController) -> str | None:
         return local_player.strategy.name
 
     return None
+
+
+class RemoteGameFinishNotifier:
+    """Remote対局の終了ログと戦略通知を一度だけ実行します。"""
+
+    def __init__(self, local_player: PlayerController) -> None:
+        """通知対象プレイヤーを設定します。
+
+        Args:
+            local_player: 対局結果を通知するローカルプレイヤー。
+        """
+        self._local_player = local_player
+        self._notified = False
+
+    def notify(self, result: GameResult, result_text: str | None) -> None:
+        """未通知であれば終了ログを出し、CPU戦略へ結果を通知します。
+
+        Args:
+            result: 終了した対局の結果。
+            result_text: 画面表示用の対局結果。
+        """
+        if self._notified:
+            return
+
+        self._notified = True
+        logger.info(
+            "ゲーム終了: result={}, local_cpu_strategy={}",
+            result_text,
+            get_cpu_strategy_name(self._local_player),
+        )
+        notify_game_finished(self._local_player, result)
