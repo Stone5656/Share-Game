@@ -28,6 +28,7 @@ Remote CPU vs CPUでは、ServerとClientがそれぞれ異なるCPU戦略を選
 | Corner Priority | 角、次に反転石数 | 角の安定性を重視 |
 | Weighted Board | 着手位置の固定重み | 盤面上の位置を重視 |
 | Learning Weighted | 学習済み線形評価値 | 対局結果から重みを更新 |
+| Tabular State Value | 盤面状態ごとの記憶 | JSONに記録した状態価値を使用 |
 
 すべての戦略は共通の`CpuStrategy` Protocolを実装します。`CpuPlayer`は具体的な
 アルゴリズムを知らず、選択された戦略の`select_move()`を呼び出すだけです。
@@ -42,6 +43,7 @@ CpuPlayer
             +-- CornerPriorityCpuStrategy
             +-- WeightedBoardCpuStrategy
             +-- LearningWeightedCpuStrategy
+            +-- TabularStateValueCpuStrategy
 ```
 
 合法手がない場合は、どの戦略も`None`を返します。ゲームモード側がこれを
@@ -279,28 +281,121 @@ data/othello_rl_weights.json
 - 重み数が6個でない場合も初期重みへ復旧する
 - 対局終了時に更新後の重みを保存する
 
-## self-play学習
+## 6. Tabular State Value
 
-開始画面の`Train Learning CPU: 10 games`を押すと、Learning Weighted同士で
-10局の自己対戦を実行します。
+`TabularStateValueCpuStrategy`は、特徴量へ圧縮せず、盤面状態ごとの価値を
+JSONテーブルへ直接記憶します。UIから選択した場合は学習済みテーブルを読む
+推論専用として動作し、対局中にtrainingやJSON更新は行いません。
 
 ```text
-重みをJSONから読み込む
-  -> 黒と白を同じ学習戦略で自己対戦
-  -> 対局結果からTD(0)更新
-  -> 重みをJSONへ保存
-  -> 次の対局へ進む
+V(state_key) = 状態価値テーブルに保存された浮動小数点値
 ```
 
-self-playはpygameの描画処理やTCP通信を使用しません。別スレッドで実行される
-ため、学習中もpygameのメインループは継続します。
+### 盤面状態キー
+
+状態キーには評価視点のプレイヤーと64マスの内容を含めます。
+
+```text
+BLACK:EEEEEEEE/EEEEEEEE/EEEEEEEE/EEEWBEEE/EEEBWEEE/EEEEEEEE/EEEEEEEE/EEEEEEEE
+```
+
+| マス | 文字 |
+| --- | --- |
+| 空 | `E` |
+| 黒 | `B` |
+| 白 | `W` |
+
+同じ盤面でも`BLACK:`と`WHITE:`は別状態として記憶します。現在は回転・反転に
+よる正規化を行っていないため、対称な盤面も個別のキーになります。
+
+### 着手選択
+
+1. 合法手ごとに仮想的な次盤面を作る
+2. 次盤面を状態キーへ変換する
+3. JSONテーブルから価値を取得する
+4. ε-greedyでランダム手または価値最大手を選ぶ
+
+未知の状態キーは`0.0`として扱います。
+
+### Tabular TD(0)
+
+状態価値は次の式で更新します。
+
+```text
+delta = reward + gamma * V(next_state) - V(current_state)
+
+V(current_state) =
+    V(current_state) + learning_rate * delta
+```
+
+終局状態では`next_state`を`None`とし、`V(next_state) = 0.0`とします。
+勝敗報酬は勝ち`+1.0`、引き分け`0.0`、負け`-1.0`です。
+
+### 状態価値JSON
+
+デフォルトの保存先:
+
+```text
+data/othello_state_values.json
+```
+
+```json
+{
+  "version": 1,
+  "values": {
+    "BLACK:EEEEEEEE/EEEEEEEE/EEEEEEEE/EEEWBEEE/EEEBWEEE/EEEEEEEE/EEEEEEEE/EEEEEEEE": 0.42
+  }
+}
+```
+
+- 未知状態は`0.0`
+- ファイルが存在しない、またはJSONが壊れている場合は空テーブルを使用
+- 保存時に親ディレクトリを自動作成
+- 一時ファイルへ書き込み後、`Path.replace()`で置換
+
+## Training CLI
+
+self-play trainingはpygame UIからは実行できません。次のCLIだけがtrainingを
+開始できます。
+
+```bash
+uv run python -m src.othello.train \
+  --strategy tabular-state-value \
+  --games 100
+```
+
+保存先を分離する例:
+
+```bash
+uv run python -m src.othello.train \
+  --strategy tabular-state-value \
+  --games 1000 \
+  --state-values-path data/server_othello_state_values.json
+```
+
+### CLI引数
+
+| 引数 | デフォルト | 説明 |
+| --- | --- | --- |
+| `--strategy` | 必須 | 現在は`tabular-state-value`のみ |
+| `--games` | `100` | 自己対戦回数 |
+| `--learning-rate` | `0.1` | TD更新の学習率 |
+| `--gamma` | `0.95` | 将来価値の割引率 |
+| `--epsilon` | `0.1` | ランダム探索率 |
+| `--state-values-path` | `data/othello_state_values.json` | 保存先 |
+| `--save-every` | `1` | 状態価値を保存する対局間隔 |
+
+training CLIはpygameとsocketを使用しません。`GameEngine`、
+`TabularStateValueCpuStrategy`、状態価値テーブルだけで黒CPUと白CPUの
+self-playを進めます。
 
 ## Remote CPU vs CPU
 
-Learning WeightedはRemote CPU vs CPUでも選択できます。
+Learning WeightedとTabular State ValueはRemote CPU vs CPUでも選択できます。
 
-- Server側とClient側は、それぞれローカルの重みファイルを使用する
-- 学習重みや特徴量は相手へ送信しない
+- Server側とClient側は、それぞれローカルのJSONファイルを使用する
+- 学習重み、状態価値、特徴量は相手へ送信しない
+- Remote対戦中にTabular trainingは実行しない
 - CPUの着手は通常の`HIT`として送信する
 - 合法手がなければ通常の`PASS`を送信する
 
@@ -319,8 +414,8 @@ PASS
 {"command": "HIT", "col": 3, "row": 2}
 ```
 
-ServerとClientで同じ重みを使用したい場合は、
-`data/othello_rl_weights.json`を手動でコピーしてください。
+ServerとClientで同じ学習結果を使用したい場合は、対応するJSONファイルを
+手動でコピーしてください。
 
 ## 実装ファイル
 
@@ -332,14 +427,20 @@ src/othello/players/cpu/
 ├── corner_priority_strategy.py
 ├── weighted_board_strategy.py
 ├── learning_weighted_strategy.py
+├── tabular_state_value_strategy.py
 ├── cpu_strategy_factory.py
 └── rl/
+    ├── board_state_key.py
     ├── feature_extractor.py
+    ├── state_value_store.py
+    ├── tabular_td_learner.py
     ├── td_evaluator.py
     ├── weight_store.py
     ├── training_config.py
     └── self_play_trainer.py
 ```
+
+CLIエントリーポイントは`src/othello/train.py`です。
 
 ## 品質確認
 
