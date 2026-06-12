@@ -43,6 +43,7 @@ class TabularTdLearner:
         delta = reward + self._gamma * next_value - current_value
         updated_value = current_value + self._learning_rate * delta
         self._store.set_value(current_key, updated_value)
+        self._store.increment_visits(current_key)
         logger.debug(
             "Tabular TD更新: reward={}, current={}, next={}, delta={}, updated={}",
             reward,

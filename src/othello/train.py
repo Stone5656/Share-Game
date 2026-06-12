@@ -6,8 +6,10 @@ from pathlib import Path
 from loguru import logger
 
 from src.othello.logger import setup_logger
-from src.othello.players.cpu.rl.self_play_trainer import SelfPlayTrainer
-from src.othello.players.cpu.rl.training_config import TabularTrainingConfig
+from src.othello.training.parallel_trainer import (
+    ParallelSelfPlayTrainer,
+    ParallelTrainingConfig,
+)
 
 SUPPORTED_STRATEGY = "tabular-state-value"
 
@@ -16,32 +18,36 @@ def main() -> None:
     """学習CLIのエントリーポイントです。"""
     setup_logger()
     args = _parse_args()
-    config = TabularTrainingConfig(
+    config = ParallelTrainingConfig(
         games=args.games,
+        workers=args.workers,
+        output_dir=args.output_dir,
         learning_rate=args.learning_rate,
         gamma=args.gamma,
         epsilon=args.epsilon,
-        state_values_path=args.state_values_path,
         save_every=args.save_every,
+        seed=args.seed,
     )
     logger.info("training CLI開始")
     logger.info(
-        "CLI引数: strategy={}, games={}, learning_rate={}, gamma={}, "
-        "epsilon={}, state_values_path={}, save_every={}",
+        "CLI引数: strategy={}, games={}, workers={}, output_dir={}, "
+        "learning_rate={}, gamma={}, epsilon={}, save_every={}, seed={}",
         args.strategy,
         config.games,
+        config.workers,
+        config.output_dir,
         config.learning_rate,
         config.gamma,
         config.epsilon,
-        config.state_values_path,
         config.save_every,
+        config.seed,
     )
-    SelfPlayTrainer().train(config)
+    shard_paths = ParallelSelfPlayTrainer().train(config)
     logger.info(
-        "training CLI終了: strategy={}, games={}, path={}",
+        "training CLI終了: strategy={}, games={}, shards={}",
         args.strategy,
         config.games,
-        config.state_values_path,
+        shard_paths,
     )
 
 
@@ -61,15 +67,17 @@ def _parse_args() -> argparse.Namespace:
         help="学習するCPU戦略。",
     )
     parser.add_argument("--games", type=_positive_int, default=100)
+    parser.add_argument("--workers", type=_positive_int, default=1)
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("data/training_shards"),
+    )
     parser.add_argument("--learning-rate", type=_positive_float, default=0.1)
     parser.add_argument("--gamma", type=_unit_interval, default=0.95)
     parser.add_argument("--epsilon", type=_unit_interval, default=0.1)
-    parser.add_argument(
-        "--state-values-path",
-        type=Path,
-        default=Path("data/othello_state_values.json"),
-    )
-    parser.add_argument("--save-every", type=_positive_int, default=1)
+    parser.add_argument("--save-every", type=_positive_int, default=100)
+    parser.add_argument("--seed", type=int)
     return parser.parse_args()
 
 
