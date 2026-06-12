@@ -182,19 +182,29 @@ class OthelloApp:
                 self.current_mode = ClientMode(self.screen, self.network_config)
 
             case AppState.SERVER_CPU_GAME:
-                logger.info("Server CPU選択")
+                selected_strategy = self.start_screen.selected_cpu_strategy
+                logger.info(
+                    "Remote CPU vs CPU開始: role=Server, color=WHITE, strategy={}",
+                    selected_strategy.name,
+                )
                 self.current_mode = ServerMode(
                     self.screen,
                     self.network_config,
                     use_cpu=True,
+                    cpu_strategy_kind=selected_strategy,
                 )
 
             case AppState.CLIENT_CPU_GAME:
-                logger.info("Client CPU選択")
+                selected_strategy = self.start_screen.selected_cpu_strategy
+                logger.info(
+                    "Remote CPU vs CPU開始: role=Client, color=BLACK, strategy={}",
+                    selected_strategy.name,
+                )
                 self.current_mode = ClientMode(
                     self.screen,
                     self.network_config,
                     use_cpu=True,
+                    cpu_strategy_kind=selected_strategy,
                 )
 
             case AppState.START_SCREEN:

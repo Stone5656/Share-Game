@@ -7,10 +7,11 @@ from loguru import logger
 
 from src.othello.config import NetworkConfig
 from src.othello.constants import CLIENT_COLOR
-from src.othello.core.game_enums import Cell
+from src.othello.core.game_enums import Cell, CpuStrategyKind
 from src.othello.modes.remote_mode_base import RemoteModeBase
 from src.othello.network.client import OthelloTcpClient
 from src.othello.network.protocol import OthelloCommand, OthelloMessage
+from src.othello.players.cpu.cpu_strategy_factory import create_cpu_strategy
 from src.othello.players.cpu_player import CpuPlayer
 from src.othello.players.local_human_player import LocalHumanPlayer
 from src.othello.players.player_controller import PlayerController
@@ -24,6 +25,7 @@ class ClientMode(RemoteModeBase):
         surface: pygame.Surface,
         network_config: NetworkConfig,
         use_cpu: bool = False,
+        cpu_strategy_kind: CpuStrategyKind = CpuStrategyKind.GREEDY,
     ) -> None:
         """クライアントモードを初期化します。
 
@@ -31,15 +33,20 @@ class ClientMode(RemoteModeBase):
             surface: 描画先Surface。
             network_config: TCP通信設定。
             use_cpu: クライアント側黒プレイヤーをCPUにする場合はTrue。
+            cpu_strategy_kind: CPUが使用する手選択アルゴリズム種別。
         """
         super().__init__(
             surface=surface,
-            local_player=self._create_local_player(use_cpu),
+            local_player=self._create_local_player(use_cpu, cpu_strategy_kind),
             remote_color=Cell.WHITE,
         )
         self.client: OthelloTcpClient = OthelloTcpClient(network_config)
         self.client.start()
-        logger.info("Client / Blackを開始しました: use_cpu={}", use_cpu)
+        logger.info(
+            "Client / Blackを開始しました: use_cpu={}, strategy={}",
+            use_cpu,
+            cpu_strategy_kind.name if use_cpu else None,
+        )
 
     def close(self) -> None:
         """クライアントモードを終了します。
@@ -121,16 +128,24 @@ class ClientMode(RemoteModeBase):
         """
         self.client.send_message(message)
 
-    def _create_local_player(self, use_cpu: bool) -> PlayerController:
+    def _create_local_player(
+        self,
+        use_cpu: bool,
+        cpu_strategy_kind: CpuStrategyKind,
+    ) -> PlayerController:
         """クライアント側の黒プレイヤーを作成します。
 
         Args:
             use_cpu: CPUプレイヤーを使う場合はTrue。
+            cpu_strategy_kind: CPUが使用する手選択アルゴリズム種別。
 
         Returns:
             クライアント側黒プレイヤー。
         """
         if use_cpu:
-            return CpuPlayer(CLIENT_COLOR)
+            return CpuPlayer(
+                CLIENT_COLOR,
+                strategy=create_cpu_strategy(cpu_strategy_kind),
+            )
 
         return LocalHumanPlayer(CLIENT_COLOR)

@@ -20,6 +20,15 @@ class PlayerKind(Enum):
     REMOTE_CPU = auto()
 
 
+class CpuStrategyKind(Enum):
+    """CPUの手選択アルゴリズム種別を表します。"""
+
+    RANDOM = auto()
+    GREEDY = auto()
+    CORNER_PRIORITY = auto()
+    WEIGHTED_BOARD = auto()
+
+
 class GameStatus(Enum):
     """ゲームの進行状態を表します。"""
 
