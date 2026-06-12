@@ -11,6 +11,11 @@ from src.othello.constants import (
 )
 from src.othello.core.game_enums import CpuStrategyKind
 from src.othello.ui.button import Button
+from src.othello.ui.learning_training_control import LearningTrainingControl
+from src.othello.ui.start_screen_layout import (
+    create_cpu_strategy_buttons,
+    create_mode_buttons,
+)
 
 
 class StartScreen:
@@ -24,14 +29,15 @@ class StartScreen:
         """
         self.network_config: NetworkConfig = network_config
         self.title_font: pygame.font.Font = pygame.font.Font(None, 72)
-        self.button_font: pygame.font.Font = pygame.font.Font(None, 25)
+        self.button_font: pygame.font.Font = pygame.font.Font(None, 23)
         self.status_font: pygame.font.Font = pygame.font.Font(None, 26)
         self.section_font: pygame.font.Font = pygame.font.Font(None, 30)
         self.selected_cpu_strategy: CpuStrategyKind = CpuStrategyKind.GREEDY
-        self.buttons: dict[AppState, Button] = self._create_buttons()
+        self.buttons: dict[AppState, Button] = create_mode_buttons(network_config)
         self.cpu_strategy_buttons: dict[CpuStrategyKind, Button] = (
-            self._create_cpu_strategy_buttons()
+            create_cpu_strategy_buttons()
         )
+        self.learning_training_control = LearningTrainingControl()
         logger.info(
             "CPU戦略を選択しました: strategy={}",
             self.selected_cpu_strategy.name,
@@ -50,6 +56,9 @@ class StartScreen:
             return None
 
         mouse_pos: tuple[int, int] = event.pos
+
+        if self.learning_training_control.handle_click(mouse_pos):
+            return None
 
         for strategy_kind, button in self.cpu_strategy_buttons.items():
             if button.is_clicked(mouse_pos):
@@ -88,92 +97,11 @@ class StartScreen:
         for button in self.cpu_strategy_buttons.values():
             button.draw(surface, self.button_font)
 
-    def _create_buttons(self) -> dict[AppState, Button]:
-        """開始画面のボタンを作成します。
-
-        Returns:
-            AppStateごとのButton辞書。
-        """
-        button_width: int = 280
-        button_height: int = 48
-        start_y: int = 230
-        gap: int = 12
-        x: int = 20
-
-        return {
-            AppState.LOCAL_GAME: Button(
-                rect=pygame.Rect(x, start_y, button_width, button_height),
-                label="Local Player vs Player",
-            ),
-            AppState.SERVER_GAME: Button(
-                rect=pygame.Rect(
-                    x,
-                    start_y + button_height + gap,
-                    button_width,
-                    button_height,
-                ),
-                label="Server / White",
-            ),
-            AppState.CLIENT_GAME: Button(
-                rect=pygame.Rect(
-                    x,
-                    start_y + (button_height + gap) * 2,
-                    button_width,
-                    button_height,
-                ),
-                label="Client / Black",
-            ),
-            AppState.SERVER_CPU_GAME: Button(
-                rect=pygame.Rect(
-                    x,
-                    start_y + (button_height + gap) * 3,
-                    button_width,
-                    button_height,
-                ),
-                label="Server CPU / White",
-            ),
-            AppState.CLIENT_CPU_GAME: Button(
-                rect=pygame.Rect(
-                    x,
-                    start_y + (button_height + gap) * 4,
-                    button_width,
-                    button_height,
-                ),
-                label=f"Client CPU / Black: {self.network_config.host}",
-            ),
-        }
-
-    def _create_cpu_strategy_buttons(self) -> dict[CpuStrategyKind, Button]:
-        """CPU戦略選択ボタンを作成します。
-
-        Returns:
-            CPU戦略種別ごとのButton辞書。
-        """
-        button_width: int = 300
-        button_height: int = 48
-        start_y: int = 230
-        gap: int = 12
-        x: int = 320
-
-        return {
-            kind: Button(
-                rect=pygame.Rect(
-                    x,
-                    start_y + (button_height + gap) * index,
-                    button_width,
-                    button_height,
-                ),
-                label=f"CPU Strategy: {label}",
-            )
-            for index, (kind, label) in enumerate(
-                (
-                    (CpuStrategyKind.RANDOM, "Random"),
-                    (CpuStrategyKind.GREEDY, "Greedy"),
-                    (CpuStrategyKind.CORNER_PRIORITY, "Corner Priority"),
-                    (CpuStrategyKind.WEIGHTED_BOARD, "Weighted Board"),
-                )
-            )
-        }
+        self.learning_training_control.draw(
+            surface,
+            self.button_font,
+            self.status_font,
+        )
 
     def _draw_title(self, surface: pygame.Surface) -> None:
         """開始画面タイトルを描画します。
