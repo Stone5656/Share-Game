@@ -26,6 +26,10 @@ class ParallelTrainingConfig:
     epsilon: float
     save_every: int
     seed: int | None
+    log_level: str = "INFO"
+    debug: bool = False
+    quiet: bool = False
+    progress_interval: int = 100
 
 
 class ParallelSelfPlayTrainer:
@@ -105,6 +109,10 @@ class ParallelSelfPlayTrainer:
                 output_path=config.output_dir / f"state_values_worker_{worker_id}.json",
                 save_every=config.save_every,
                 seed=base_seed + worker_id,
+                log_level=config.log_level,
+                debug=config.debug,
+                quiet=config.quiet,
+                progress_interval=config.progress_interval,
             )
             for worker_id in range(worker_count)
         )
@@ -117,3 +125,5 @@ class ParallelSelfPlayTrainer:
             raise ValueError("workersは1以上で指定してください。")
         if config.save_every < 1:
             raise ValueError("save_everyは1以上で指定してください。")
+        if config.progress_interval < 1:
+            raise ValueError("progress_intervalは1以上で指定してください。")

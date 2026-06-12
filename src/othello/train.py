@@ -16,8 +16,13 @@ SUPPORTED_STRATEGY = "tabular-state-value"
 
 def main() -> None:
     """学習CLIのエントリーポイントです。"""
-    setup_logger()
     args = _parse_args()
+    console_level = _resolve_console_level(args)
+    setup_logger(
+        console_level=console_level,
+        file_level="DEBUG" if args.debug else args.log_level,
+        enable_file_debug=args.debug,
+    )
     config = ParallelTrainingConfig(
         games=args.games,
         workers=args.workers,
@@ -27,11 +32,16 @@ def main() -> None:
         epsilon=args.epsilon,
         save_every=args.save_every,
         seed=args.seed,
+        log_level=args.log_level,
+        debug=args.debug,
+        quiet=args.quiet,
+        progress_interval=args.progress_interval,
     )
     logger.info("training CLI開始")
     logger.info(
         "CLI引数: strategy={}, games={}, workers={}, output_dir={}, "
-        "learning_rate={}, gamma={}, epsilon={}, save_every={}, seed={}",
+        "learning_rate={}, gamma={}, epsilon={}, save_every={}, seed={}, "
+        "log_level={}, debug={}, quiet={}, progress_interval={}",
         args.strategy,
         config.games,
         config.workers,
@@ -41,6 +51,10 @@ def main() -> None:
         config.epsilon,
         config.save_every,
         config.seed,
+        config.log_level,
+        config.debug,
+        config.quiet,
+        config.progress_interval,
     )
     shard_paths = ParallelSelfPlayTrainer().train(config)
     logger.info(
@@ -78,7 +92,24 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--epsilon", type=_unit_interval, default=0.1)
     parser.add_argument("--save-every", type=_positive_int, default=100)
     parser.add_argument("--seed", type=int)
+    parser.add_argument(
+        "--log-level",
+        choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+        default="INFO",
+    )
+    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--progress-interval", type=_positive_int, default=100)
     return parser.parse_args()
+
+
+def _resolve_console_level(args: argparse.Namespace) -> str:
+    """CLIフラグからコンソールログレベルを決定します。"""
+    if args.quiet:
+        return "WARNING"
+    if args.debug:
+        return "DEBUG"
+    return args.log_level
 
 
 def _positive_int(value: str) -> int:

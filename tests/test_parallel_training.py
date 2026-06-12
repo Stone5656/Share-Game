@@ -27,6 +27,7 @@ class ParallelTrainingTest(unittest.TestCase):
                 epsilon=0.1,
                 save_every=1,
                 seed=42,
+                progress_interval=1,
             )
 
             paths = ParallelSelfPlayTrainer().train(config)

@@ -43,6 +43,7 @@ class StateValueMerger:
         visit_sums: dict[str, int] = {}
         loaded_shards = 0
         skipped_files = 0
+        input_state_count = 0
 
         for path in sorted(input_dir.glob("*.json")):
             try:
@@ -53,8 +54,16 @@ class StateValueMerger:
                 continue
 
             loaded_shards += 1
+            input_state_count += len(entries)
             self._accumulate(entries, weighted_sums, visit_sums)
 
+        logger.info(
+            "merge入力読込完了: loaded_shards={}, skipped_files={}, "
+            "input_state_count={}",
+            loaded_shards,
+            skipped_files,
+            input_state_count,
+        )
         store = StateValueStore(output_path)
         for key in weighted_sums.keys() | visit_sums.keys():
             visits = visit_sums.get(key, 0)

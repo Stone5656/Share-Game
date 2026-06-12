@@ -101,7 +101,7 @@ class TabularStateValueCpuStrategy:
             reward = self._get_reward(player, result.winner)
             updated_state_count += self._update_history(player, reward)
 
-        logger.info(
+        logger.debug(
             "Tabular対局結果学習: winner={}, black={}, white={}, updated_states={}",
             result.winner.name if result.winner is not None else None,
             result.black_count,

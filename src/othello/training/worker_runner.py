@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import random
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from loguru import logger
 
+from src.othello.logger import setup_logger
 from src.othello.players.cpu.rl.self_play_trainer import SelfPlayTrainer
 from src.othello.players.cpu.rl.training_config import TabularTrainingConfig
 
@@ -29,6 +29,10 @@ class WorkerTrainingConfig:
     output_path: Path
     save_every: int
     seed: int
+    log_level: str
+    debug: bool
+    quiet: bool
+    progress_interval: int
 
 
 def run_training_worker(config: WorkerTrainingConfig) -> Path:
@@ -40,7 +44,13 @@ def run_training_worker(config: WorkerTrainingConfig) -> Path:
     Returns:
         作成したshardファイルのパス。
     """
-    _configure_worker_logger()
+    console_level = _resolve_console_level(config.log_level, config.debug, config.quiet)
+    setup_logger(
+        console_level=console_level,
+        file_level="DEBUG" if config.debug else config.log_level,
+        enable_file_debug=config.debug,
+        log_filter=None if config.debug else _is_training_log,
+    )
     random.seed(config.seed)
     logger.info(
         "[worker={}] worker開始: games={}, seed={}, output={}",
@@ -57,7 +67,15 @@ def run_training_worker(config: WorkerTrainingConfig) -> Path:
         state_values_path=config.output_path,
         save_every=config.save_every,
     )
-    SelfPlayTrainer().train(training_config)
+    try:
+        SelfPlayTrainer().train(
+            training_config,
+            worker_id=config.worker_id,
+            progress_interval=config.progress_interval,
+        )
+    except Exception:
+        logger.exception("[worker={}] training継続不能", config.worker_id)
+        raise
     logger.info(
         "[worker={}] worker終了: output={}",
         config.worker_id,
@@ -66,25 +84,22 @@ def run_training_worker(config: WorkerTrainingConfig) -> Path:
     return config.output_path
 
 
-def _configure_worker_logger() -> None:
-    """worker processのログをtraining関連のINFO以上へ限定します。"""
-    logger.remove()
-    logger.add(
-        sys.stderr,
-        level="INFO",
-        colorize=False,
-        filter=_is_training_log,
-        format="{time:HH:mm:ss} | {level:<8} | {message}",
-    )
+def _resolve_console_level(log_level: str, debug: bool, quiet: bool) -> str:
+    """CLIフラグからworkerのコンソールログレベルを決定します。"""
+    if quiet:
+        return "WARNING"
+    if debug:
+        return "DEBUG"
+    return log_level
 
 
 def _is_training_log(record: Record) -> bool:
     """training進捗として表示するログレコードかを返します。"""
     allowed_names = (
+        "src.othello.train",
         "src.othello.training",
         "src.othello.players.cpu.rl.self_play_trainer",
         "src.othello.players.cpu.rl.state_value_store",
-        "src.othello.players.cpu.tabular_state_value_strategy",
     )
     name = record["name"]
     return name is not None and name.startswith(allowed_names)

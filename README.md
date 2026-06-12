@@ -410,10 +410,34 @@ uv run python -m src.othello.train \
 | `--epsilon` | `0.1` | ランダム探索率 |
 | `--save-every` | `100` | 各workerがshardを保存する対局間隔 |
 | `--seed` | ランダム | worker seedの基準値 |
+| `--log-level` | `INFO` | `DEBUG`、`INFO`、`WARNING`、`ERROR`から選択 |
+| `--debug` | 無効 | DEBUGコンソール・ファイルログを有効化 |
+| `--quiet` | 無効 | WARNING以上だけを出力 |
+| `--progress-interval` | `100` | workerごとの進捗ログ出力間隔 |
 
 training CLIはpygameとsocketを使用しません。`GameEngine`、
 `TabularStateValueCpuStrategy`、状態価値テーブルだけで黒CPUと白CPUの
 self-playを進めます。workerのseedは`base_seed + worker_id`です。
+
+通常のtrainingでは1手ごと、各合法手、各状態価値、TD更新の詳細を出力せず、
+開始・保存・指定間隔の勝敗集計・終了だけをINFOで表示します。詳細確認時だけ
+`--debug`を指定してください。`--quiet`は他のログ指定より優先されます。
+
+```bash
+# 10局だけ詳細ログを確認
+uv run python -m src.othello.train \
+  --strategy tabular-state-value \
+  --games 10 \
+  --workers 1 \
+  --debug
+
+# WARNING以上だけを表示
+uv run python -m src.othello.train \
+  --strategy tabular-state-value \
+  --games 1000 \
+  --workers 4 \
+  --quiet
+```
 
 ## Merge CLI
 
@@ -437,6 +461,9 @@ merged_visits = sum(visits_i)
 合計訪問数が`0`の場合、統合後の価値は`0.0`です。version 2以外のJSONや
 壊れたファイルは警告ログを出してスキップします。統合結果も一時ファイルを
 経由して安全に保存します。
+
+merge CLIもデフォルトはINFOで、DEBUGログをファイルへ出しません。
+`--log-level`、`--debug`、`--quiet`はtraining CLIと同じ意味で使用できます。
 
 ## Remote CPU vs CPU
 
