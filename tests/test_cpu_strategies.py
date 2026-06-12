@@ -91,6 +91,7 @@ class CpuStrategyTest(unittest.TestCase):
             CpuStrategyKind.CORNER_PRIORITY: "Corner Priority",
             CpuStrategyKind.WEIGHTED_BOARD: "Weighted Board",
             CpuStrategyKind.LEARNING_WEIGHTED: "Learning Weighted",
+            CpuStrategyKind.TABULAR_STATE_VALUE: "Tabular State Value",
         }
 
         for kind, expected_name in expected_names.items():

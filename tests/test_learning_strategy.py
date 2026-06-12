@@ -12,7 +12,9 @@ from src.othello.core.rules import LegalMoveScanner
 from src.othello.players.cpu.learning_weighted_strategy import (
     LearningWeightedCpuStrategy,
 )
-from src.othello.players.cpu.rl.self_play_trainer import SelfPlayTrainer
+from src.othello.players.cpu.rl.linear_self_play_trainer import (
+    LinearSelfPlayTrainer,
+)
 from src.othello.players.cpu.rl.training_config import TrainingConfig
 
 
@@ -42,7 +44,7 @@ class LearningStrategyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "weights.json"
             config = TrainingConfig(0.01, 0.95, 0.1, str(path))
-            trainer = SelfPlayTrainer(config)
+            trainer = LinearSelfPlayTrainer(config)
 
             trainer.train(1)
 
