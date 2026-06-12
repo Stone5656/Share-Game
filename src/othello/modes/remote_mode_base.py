@@ -8,6 +8,11 @@ from src.othello.core.game_engine import GameEngine
 from src.othello.core.game_enums import Cell, GameStatus
 from src.othello.core.game_types import BoardPosition, PlayerAction, PlayerContext
 from src.othello.core.rules import LegalMoveScanner
+from src.othello.modes.remote_cpu_logging import (
+    get_cpu_strategy_name,
+    log_local_hit,
+    log_local_pass,
+)
 from src.othello.modes.remote_message_handler import RemoteMessageHandler
 from src.othello.network.protocol import (
     OthelloMessage,
@@ -101,7 +106,7 @@ class RemoteModeBase:
 
         if self.engine.apply_move(action.position):
             self._send_message(create_hit_message(action.position))
-            logger.info("HIT送信: position={}", action.position)
+            log_local_hit(self.local_player, action.position)
             self._log_game_over_if_needed()
 
     def draw(self) -> None:
@@ -147,7 +152,7 @@ class RemoteModeBase:
 
         if self.engine.apply_pass(player):
             self._send_message(create_pass_message())
-            logger.info("PASS送信: player={}", player.name)
+            log_local_pass(self.local_player)
             self._log_game_over_if_needed()
 
     def _can_local_player_act(self) -> bool:
@@ -228,7 +233,11 @@ class RemoteModeBase:
             None.
         """
         if self.engine.status is GameStatus.GAME_OVER:
-            logger.info("ゲーム終了: result={}", self.engine.get_result_text())
+            logger.info(
+                "ゲーム終了: result={}, local_cpu_strategy={}",
+                self.engine.get_result_text(),
+                get_cpu_strategy_name(self.local_player),
+            )
 
     def _process_network_messages(self) -> None:
         """受信済みネットワークメッセージを処理します。"""
