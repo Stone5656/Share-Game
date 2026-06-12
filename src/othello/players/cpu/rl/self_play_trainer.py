@@ -1,4 +1,4 @@
-"""描画や通信を使わないCPU自己対戦学習を定義します。"""
+"""盤面記憶型CPUのCLI向け自己対戦学習を定義します。"""
 
 from loguru import logger
 
@@ -7,70 +7,88 @@ from src.othello.core.game_engine import GameEngine
 from src.othello.core.game_enums import Cell, GameStatus
 from src.othello.core.game_types import PlayerContext
 from src.othello.core.rules import LegalMoveScanner
-from src.othello.players.cpu.learning_weighted_strategy import (
-    LearningWeightedCpuStrategy,
-)
-from src.othello.players.cpu.rl.training_config import (
-    DEFAULT_TRAINING_CONFIG,
-    TrainingConfig,
+from src.othello.players.cpu.rl.state_value_store import StateValueStore
+from src.othello.players.cpu.rl.training_config import TabularTrainingConfig
+from src.othello.players.cpu.tabular_state_value_strategy import (
+    TabularStateValueCpuStrategy,
 )
 
 
 class SelfPlayTrainer:
-    """CPU同士の自己対戦で学習を進めます。"""
+    """CPU同士の自己対戦で状態価値の学習を進めます。"""
 
-    def __init__(
-        self,
-        config: TrainingConfig = DEFAULT_TRAINING_CONFIG,
-    ) -> None:
-        """自己対戦学習器を初期化します。
+    def train(self, config: TabularTrainingConfig) -> None:
+        """指定設定に基づいて自己対戦学習を実行します。
 
         Args:
-            config: 強化学習設定。
+            config: 自己対戦回数とTD学習設定。
         """
-        self._strategy = LearningWeightedCpuStrategy(config)
-
-    @property
-    def weights(self) -> tuple[float, ...]:
-        """現在の学習重みを返します。"""
-        return self._strategy.weights
-
-    def train(self, game_count: int) -> None:
-        """指定回数の自己対戦を実行します。
-
-        Args:
-            game_count: 実行する自己対戦数。
-
-        Raises:
-            ValueError: game_countが1未満の場合。
-        """
-        if game_count < 1:
-            raise ValueError("game_countは1以上で指定してください。")
-
-        logger.info("self-play開始: game_count={}", game_count)
-        for game_index in range(game_count):
-            result_text = self._play_one_game()
-            logger.info(
-                "self-play対局終了: game={}/{}, result={}",
-                game_index + 1,
-                game_count,
-                result_text,
-            )
+        self._validate_config(config)
+        store = StateValueStore(config.state_values_path)
+        store.load()
+        black_strategy = self._create_strategy(config, store)
+        white_strategy = self._create_strategy(config, store)
 
         logger.info(
-            "self-play終了: game_count={}, weights={}",
-            game_count,
-            self._strategy.weights,
+            "self-play開始: games={}, path={}",
+            config.games,
+            config.state_values_path,
+        )
+        for game_number in range(1, config.games + 1):
+            logger.info("self-playゲーム開始: game={}/{}", game_number, config.games)
+            engine = self._play_one_game(black_strategy, white_strategy)
+            result = engine.get_game_result()
+            black_strategy.on_game_finished(result)
+            white_strategy.on_game_finished(result)
+            logger.info(
+                "self-playゲーム終了: game={}/{}, winner={}, black={}, white={}",
+                game_number,
+                config.games,
+                result.winner.name if result.winner is not None else None,
+                result.black_count,
+                result.white_count,
+            )
+
+            if game_number % config.save_every == 0:
+                store.save()
+
+        if config.games % config.save_every != 0:
+            store.save()
+        logger.info(
+            "self-play終了: games={}, state_count={}",
+            config.games,
+            store.state_count,
         )
 
-    def _play_one_game(self) -> str | None:
-        """自己対戦を1局実行して結果文字列を返します。"""
+    def _create_strategy(
+        self,
+        config: TabularTrainingConfig,
+        store: StateValueStore,
+    ) -> TabularStateValueCpuStrategy:
+        """共有テーブルを使う学習戦略を作成します。"""
+        return TabularStateValueCpuStrategy(
+            config=config,
+            learning_enabled=True,
+            auto_save=False,
+            store=store,
+        )
+
+    def _play_one_game(
+        self,
+        black_strategy: TabularStateValueCpuStrategy,
+        white_strategy: TabularStateValueCpuStrategy,
+    ) -> GameEngine:
+        """盤面記憶型CPU同士の対局を1局実行します。"""
         board = Board()
         engine = GameEngine(
             board=board,
             current_player=Cell.BLACK,
             legal_move_scanner=LegalMoveScanner(),
         )
+        strategies = {
+            Cell.BLACK: black_strategy,
+            Cell.WHITE: white_strategy,
+        }
 
         while engine.status is GameStatus.PLAYING:
             if not engine.legal_moves:
@@ -82,10 +100,18 @@ class SelfPlayTrainer:
                 legal_moves=engine.legal_moves,
                 board=board,
             )
-            move = self._strategy.select_move(context)
+            move = strategies[engine.current_player].select_move(context)
             if move is None:
                 raise RuntimeError("合法手がある状態でCPUが手を選択しませんでした。")
             engine.apply_move(move.position)
 
-        self._strategy.on_game_finished(engine.get_game_result())
-        return engine.get_result_text()
+        return engine
+
+    def _validate_config(self, config: TabularTrainingConfig) -> None:
+        """CLIから受け取った学習設定を検証します。"""
+        if config.games < 1:
+            raise ValueError("gamesは1以上で指定してください。")
+        if config.save_every < 1:
+            raise ValueError("save_everyは1以上で指定してください。")
+        if not 0.0 <= config.epsilon <= 1.0:
+            raise ValueError("epsilonは0.0から1.0で指定してください。")

@@ -11,7 +11,6 @@ from src.othello.constants import (
 )
 from src.othello.core.game_enums import CpuStrategyKind
 from src.othello.ui.button import Button
-from src.othello.ui.learning_training_control import LearningTrainingControl
 from src.othello.ui.start_screen_layout import (
     create_cpu_strategy_buttons,
     create_mode_buttons,
@@ -37,7 +36,6 @@ class StartScreen:
         self.cpu_strategy_buttons: dict[CpuStrategyKind, Button] = (
             create_cpu_strategy_buttons()
         )
-        self.learning_training_control = LearningTrainingControl()
         logger.info(
             "CPU戦略を選択しました: strategy={}",
             self.selected_cpu_strategy.name,
@@ -56,9 +54,6 @@ class StartScreen:
             return None
 
         mouse_pos: tuple[int, int] = event.pos
-
-        if self.learning_training_control.handle_click(mouse_pos):
-            return None
 
         for strategy_kind, button in self.cpu_strategy_buttons.items():
             if button.is_clicked(mouse_pos):
@@ -96,12 +91,6 @@ class StartScreen:
 
         for button in self.cpu_strategy_buttons.values():
             button.draw(surface, self.button_font)
-
-        self.learning_training_control.draw(
-            surface,
-            self.button_font,
-            self.status_font,
-        )
 
     def _draw_title(self, surface: pygame.Surface) -> None:
         """開始画面タイトルを描画します。
@@ -172,5 +161,5 @@ class StartScreen:
             True,
             RESULT_TEXT_COLOR,
         )
-        text_rect: pygame.Rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, 565))
+        text_rect: pygame.Rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, 590))
         surface.blit(text_surface, text_rect)

@@ -7,9 +7,9 @@ from src.othello.core.game_enums import CpuStrategyKind
 from src.othello.ui.button import Button
 
 BUTTON_WIDTH = 280
-BUTTON_HEIGHT = 44
-START_Y = 220
-BUTTON_GAP = 8
+BUTTON_HEIGHT = 42
+START_Y = 215
+BUTTON_GAP = 7
 
 
 def create_mode_buttons(network_config: NetworkConfig) -> dict[AppState, Button]:
@@ -57,6 +57,7 @@ def create_cpu_strategy_buttons() -> dict[CpuStrategyKind, Button]:
         (CpuStrategyKind.CORNER_PRIORITY, "Corner Priority"),
         (CpuStrategyKind.WEIGHTED_BOARD, "Weighted Board"),
         (CpuStrategyKind.LEARNING_WEIGHTED, "Learning Weighted"),
+        (CpuStrategyKind.TABULAR_STATE_VALUE, "Tabular State Value"),
     )
     return {
         kind: Button(

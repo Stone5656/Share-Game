@@ -10,6 +10,9 @@ from src.othello.players.cpu.learning_weighted_strategy import (
     LearningWeightedCpuStrategy,
 )
 from src.othello.players.cpu.random_strategy import RandomCpuStrategy
+from src.othello.players.cpu.tabular_state_value_strategy import (
+    TabularStateValueCpuStrategy,
+)
 from src.othello.players.cpu.weighted_board_strategy import WeightedBoardCpuStrategy
 
 
@@ -33,5 +36,7 @@ def create_cpu_strategy(kind: CpuStrategyKind) -> CpuStrategy:
             return WeightedBoardCpuStrategy()
         case CpuStrategyKind.LEARNING_WEIGHTED:
             return LearningWeightedCpuStrategy()
+        case CpuStrategyKind.TABULAR_STATE_VALUE:
+            return TabularStateValueCpuStrategy()
 
     raise ValueError(f"未対応のCPU戦略種別です: {kind}")

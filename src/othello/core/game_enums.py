@@ -28,6 +28,7 @@ class CpuStrategyKind(Enum):
     CORNER_PRIORITY = auto()
     WEIGHTED_BOARD = auto()
     LEARNING_WEIGHTED = auto()
+    TABULAR_STATE_VALUE = auto()
 
 
 class GameStatus(Enum):
