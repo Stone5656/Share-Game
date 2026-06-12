@@ -1,8 +1,14 @@
 """オセロのゲームロジックで使用する値オブジェクトを定義します。"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from src.othello.core.game_enums import Cell
+
+if TYPE_CHECKING:
+    from src.othello.core.board import Board
 
 
 @dataclass(frozen=True)
@@ -64,7 +70,9 @@ class PlayerContext:
     Attributes:
         current_player: 現在の手番プレイヤー。
         legal_moves: 現在の手番プレイヤーが選択できる合法手一覧。
+        board: 現在の盤面。盤面評価を行わないプレイヤーではNone。
     """
 
     current_player: Cell
     legal_moves: tuple[LegalMove, ...]
+    board: Board | None = None

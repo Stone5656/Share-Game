@@ -27,6 +27,7 @@ class CpuStrategyKind(Enum):
     GREEDY = auto()
     CORNER_PRIORITY = auto()
     WEIGHTED_BOARD = auto()
+    LEARNING_WEIGHTED = auto()
 
 
 class GameStatus(Enum):

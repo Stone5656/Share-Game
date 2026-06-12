@@ -6,7 +6,11 @@ from loguru import logger
 
 from src.othello.core.board import Board
 from src.othello.core.game_enums import Cell, GameStatus
-from src.othello.core.game_result import create_result_text, determine_winner
+from src.othello.core.game_result import (
+    GameResult,
+    create_result_text,
+    determine_winner,
+)
 from src.othello.core.game_types import BoardPosition, LegalMove
 from src.othello.core.move_applier import flip_stones, place_stone
 from src.othello.core.player_color import get_opponent
@@ -218,3 +222,15 @@ class GameEngine:
             ゲーム終了時は結果文字列。ゲーム中はNone。
         """
         return create_result_text(self.status, self.winner)
+
+    def get_game_result(self) -> GameResult:
+        """現在の石数と勝者から対局結果を返します。
+
+        Returns:
+            現在の対局結果。
+        """
+        return GameResult(
+            black_count=self.black_count,
+            white_count=self.white_count,
+            winner=self.winner,
+        )

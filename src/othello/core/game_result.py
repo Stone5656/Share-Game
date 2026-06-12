@@ -1,6 +1,23 @@
 """ゲーム結果の判定と表示文字列を定義します。"""
 
+from dataclasses import dataclass
+
 from src.othello.core.game_enums import Cell, GameStatus
+
+
+@dataclass(frozen=True)
+class GameResult:
+    """対局結果を表します。
+
+    Attributes:
+        black_count: 黒石数。
+        white_count: 白石数。
+        winner: 勝者。引き分けの場合はNone。
+    """
+
+    black_count: int
+    white_count: int
+    winner: Cell | None
 
 
 def determine_winner(black_count: int, white_count: int) -> Cell | None:
