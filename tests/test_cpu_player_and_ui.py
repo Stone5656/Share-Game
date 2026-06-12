@@ -62,7 +62,7 @@ class CpuPlayerAndUiTest(unittest.TestCase):
     def test_start_screen_updates_selected_cpu_strategy(self) -> None:
         """CPU戦略ボタンのクリックで選択中戦略を更新します。"""
         screen = StartScreen(NetworkConfig("127.0.0.1", 5555))
-        button = screen.cpu_strategy_buttons[CpuStrategyKind.WEIGHTED_BOARD]
+        button = screen.cpu_strategy_buttons[CpuStrategyKind.LEARNING_WEIGHTED]
         event = pygame.event.Event(
             pygame.MOUSEBUTTONDOWN,
             button=1,
@@ -74,7 +74,7 @@ class CpuPlayerAndUiTest(unittest.TestCase):
         self.assertIsNone(selected_state)
         self.assertIs(
             screen.selected_cpu_strategy,
-            CpuStrategyKind.WEIGHTED_BOARD,
+            CpuStrategyKind.LEARNING_WEIGHTED,
         )
 
 
