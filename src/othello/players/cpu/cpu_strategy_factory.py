@@ -6,6 +6,9 @@ from src.othello.players.cpu.corner_priority_strategy import (
 )
 from src.othello.players.cpu.cpu_strategy import CpuStrategy
 from src.othello.players.cpu.greedy_strategy import GreedyCpuStrategy
+from src.othello.players.cpu.learning_weighted_strategy import (
+    LearningWeightedCpuStrategy,
+)
 from src.othello.players.cpu.random_strategy import RandomCpuStrategy
 from src.othello.players.cpu.weighted_board_strategy import WeightedBoardCpuStrategy
 
@@ -28,5 +31,7 @@ def create_cpu_strategy(kind: CpuStrategyKind) -> CpuStrategy:
             return CornerPriorityCpuStrategy()
         case CpuStrategyKind.WEIGHTED_BOARD:
             return WeightedBoardCpuStrategy()
+        case CpuStrategyKind.LEARNING_WEIGHTED:
+            return LearningWeightedCpuStrategy()
 
     raise ValueError(f"未対応のCPU戦略種別です: {kind}")

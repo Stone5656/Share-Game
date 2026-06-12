@@ -9,7 +9,7 @@ from src.othello.core.game_enums import Cell, GameStatus
 from src.othello.core.game_types import BoardPosition, PlayerAction, PlayerContext
 from src.othello.core.rules import LegalMoveScanner
 from src.othello.modes.remote_cpu_logging import (
-    get_cpu_strategy_name,
+    RemoteGameFinishNotifier,
     log_local_hit,
     log_local_pass,
 )
@@ -54,6 +54,7 @@ class RemoteModeBase:
             remote_player=self.remote_player,
         )
         self.game_ready: bool = False
+        self._game_finish_notifier = RemoteGameFinishNotifier(local_player)
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """ローカル入力イベントを処理します。
@@ -213,6 +214,7 @@ class RemoteModeBase:
         return PlayerContext(
             current_player=self.engine.current_player,
             legal_moves=self.engine.legal_moves,
+            board=self.board,
         )
 
     def _get_legal_move_positions(self) -> tuple[BoardPosition, ...]:
@@ -233,10 +235,9 @@ class RemoteModeBase:
             None.
         """
         if self.engine.status is GameStatus.GAME_OVER:
-            logger.info(
-                "ゲーム終了: result={}, local_cpu_strategy={}",
+            self._game_finish_notifier.notify(
+                self.engine.get_game_result(),
                 self.engine.get_result_text(),
-                get_cpu_strategy_name(self.local_player),
             )
 
     def _process_network_messages(self) -> None:

@@ -68,6 +68,7 @@ class LocalMode:
         context: PlayerContext = PlayerContext(
             current_player=self.engine.current_player,
             legal_moves=self.engine.legal_moves,
+            board=self.board,
         )
         action: PlayerAction | None = current_player.select_action(context)
 
